@@ -1,25 +1,37 @@
 from django.urls import path
 
-from . import views
+from .views import CATALOGS, VIEWS, catalog_index
 
 app_name = "catalog"
 
-urlpatterns = [
-    path("", views.catalog_index, name="index"),
+# URL slugs en español para que las URLs queden naturales (/catalogos/materiales/...).
+SLUG_PATHS: dict[str, str] = {
+    "rubro": "rubros",
+    "subrubro": "subrubros",
+    "unit": "unidades",
+    "businesscomponent": "componentes",
+    "projectstatus": "estados-obra",
+    "employeestatus": "estados-empleado",
+    "position": "puestos",
+    "bank": "bancos",
+    "extraordinaryconcept": "conceptos-extraordinarios",
+    "trackingcategory": "categorias-seguimiento",
+    "supplier": "proveedores",
+    "material": "materiales",
+    "subcontract": "subcontratos",
+}
 
-    path("rubros/", views.RubroListView.as_view(), name="rubro_list"),
-    path("rubros/nuevo/", views.RubroCreateView.as_view(), name="rubro_create"),
-    path("rubros/<int:pk>/editar/", views.RubroUpdateView.as_view(), name="rubro_edit"),
 
-    path("subrubros/", views.SubrubroListView.as_view(), name="subrubro_list"),
-    path("subrubros/nuevo/", views.SubrubroCreateView.as_view(), name="subrubro_create"),
-    path("subrubros/<int:pk>/editar/", views.SubrubroUpdateView.as_view(), name="subrubro_edit"),
+def _patterns_for(slug: str) -> list:
+    path_slug = SLUG_PATHS.get(slug, slug)
+    views = VIEWS[slug]
+    return [
+        path(f"{path_slug}/", views["list"].as_view(), name=f"{slug}_list"),
+        path(f"{path_slug}/nuevo/", views["create"].as_view(), name=f"{slug}_create"),
+        path(f"{path_slug}/<int:pk>/editar/", views["update"].as_view(), name=f"{slug}_edit"),
+    ]
 
-    path("unidades/", views.UnitListView.as_view(), name="unit_list"),
-    path("unidades/nueva/", views.UnitCreateView.as_view(), name="unit_create"),
-    path("unidades/<int:pk>/editar/", views.UnitUpdateView.as_view(), name="unit_edit"),
 
-    path("componentes/", views.BusinessComponentListView.as_view(), name="businesscomponent_list"),
-    path("componentes/nuevo/", views.BusinessComponentCreateView.as_view(), name="businesscomponent_create"),
-    path("componentes/<int:pk>/editar/", views.BusinessComponentUpdateView.as_view(), name="businesscomponent_edit"),
-]
+urlpatterns = [path("", catalog_index, name="index")]
+for _slug in CATALOGS:
+    urlpatterns.extend(_patterns_for(_slug))
