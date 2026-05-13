@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -8,8 +10,13 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import DetailView, ListView
 
-from .forms import PurchaseForm, PurchaseItemFormSet
-from .models import Purchase, _items_total
+from .forms import PurchaseForm, PurchaseItemFormSet, PurchasePaymentForm
+from .models import (
+    Purchase,
+    PurchasePayment,
+    _items_total,
+    _payments_total_in_purchase_currency,
+)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -66,6 +73,12 @@ class PurchaseDetailView(DetailView):
             and items_total
             and abs(items_total - purchase.amount_without_tax) > 0.01
         )
+        # Pagos
+        payments = list(purchase.payments.select_related("currency").all())
+        ctx["payments"] = payments
+        ctx["payments_total"] = _payments_total_in_purchase_currency(purchase)
+        ctx["payment_form"] = PurchasePaymentForm(purchase=purchase)
+        ctx["balance"] = (purchase.total_amount or Decimal("0")) - ctx["payments_total"]
         return ctx
 
 
@@ -78,6 +91,37 @@ def purchase_create(request):
 def purchase_edit(request, pk: int):
     purchase = get_object_or_404(Purchase, pk=pk)
     return _purchase_form(request, instance=purchase)
+
+
+@login_required
+def payment_create(request, pk: int):
+    """Registra un pago contra una compra desde el detail."""
+    purchase = get_object_or_404(Purchase, pk=pk)
+    form = PurchasePaymentForm(request.POST or None, purchase=purchase)
+    if request.method == "POST" and form.is_valid():
+        payment = form.save(commit=False)
+        payment.purchase = purchase
+        payment.created_by = request.user
+        payment.save()
+        messages.success(
+            request,
+            f"Pago de {payment.amount} {payment.currency.code} registrado.",
+        )
+        return redirect("procurement:detail", pk=purchase.pk)
+    if request.method == "POST":
+        messages.error(request, "No se pudo guardar el pago. Revisá los campos.")
+    return redirect("procurement:detail", pk=purchase.pk)
+
+
+@login_required
+def payment_delete(request, pk: int, payment_pk: int):
+    """Borra un pago. POST-only para que no se dispare por linkeo accidental."""
+    if request.method != "POST":
+        return redirect("procurement:detail", pk=pk)
+    payment = get_object_or_404(PurchasePayment, pk=payment_pk, purchase_id=pk)
+    payment.delete()
+    messages.success(request, "Pago eliminado.")
+    return redirect("procurement:detail", pk=pk)
 
 
 def _purchase_form(request, instance: Purchase | None):

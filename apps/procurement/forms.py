@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 from django.forms import inlineformset_factory
 
-from .models import Purchase, PurchaseItem
+from .models import Purchase, PurchaseItem, PurchasePayment
 
 
 class PurchaseForm(forms.ModelForm):
@@ -49,3 +49,20 @@ PurchaseItemFormSet = inlineformset_factory(
     form=PurchaseItemForm,
     extra=3, can_delete=True,
 )
+
+
+class PurchasePaymentForm(forms.ModelForm):
+    class Meta:
+        model = PurchasePayment
+        fields = ("payment_date", "amount", "currency", "payment_method", "reference", "notes")
+        widgets = {
+            "payment_date": forms.DateInput(attrs={"type": "date"}),
+            "amount": forms.NumberInput(attrs={"step": "0.01"}),
+            "notes": forms.TextInput(),
+        }
+
+    def __init__(self, *args, purchase=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-cargar moneda con la de la compra si está disponible.
+        if purchase is not None and not self.is_bound:
+            self.fields["currency"].initial = purchase.original_currency

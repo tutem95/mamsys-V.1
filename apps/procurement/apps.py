@@ -6,3 +6,6 @@ class ProcurementConfig(AppConfig):
     name = "apps.procurement"
     label = "procurement"
     verbose_name = "Compras"
+
+    def ready(self) -> None:  # noqa: D401
+        from . import signals  # noqa: F401

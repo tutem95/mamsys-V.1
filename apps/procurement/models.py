@@ -228,3 +228,97 @@ class PurchaseItem(TimestampedModel):
 def _items_total(purchase: Purchase) -> Decimal:
     """Suma del total de los items de una compra. Para mostrar warnings."""
     return purchase.items.aggregate(total=models.Sum("total"))["total"] or Decimal("0")
+
+
+class PurchasePayment(TimestampedModel):
+    """Pago (parcial o total) contra una compra.
+
+    La suma de pagos de una compra (convertidos a la moneda de la compra
+    cuando corresponda) determina si el status pasa a paid_partial o paid.
+    """
+
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name="payments")
+    payment_date = models.DateField()
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    currency = models.ForeignKey(
+        "currencies.Currency", on_delete=models.PROTECT, related_name="purchase_payments",
+    )
+    exchange_rate_used = models.ForeignKey(
+        "pricing.ExchangeRate", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="+",
+        help_text="Solo si la moneda del pago difiere de la moneda de la compra.",
+    )
+    # TODO(bank_account): Cuenta bancaria (Fase 2 + Fase 10 — depende de Bank/Company/Currency).
+    payment_method = models.CharField(max_length=80, blank=True)
+    reference = models.CharField("Nº de referencia", max_length=80, blank=True,
+                                 help_text="Nº de transferencia, cheque, etc.")
+    notes = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = "Pago"
+        verbose_name_plural = "Pagos"
+        ordering = ("-payment_date", "-created_at")
+        indexes = [
+            models.Index(fields=["purchase", "-payment_date"]),
+            models.Index(fields=["payment_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Pago {self.amount} {self.currency.code} @ {self.payment_date}"
+
+    def amount_in_purchase_currency(self) -> Decimal:
+        """Convierte el monto del pago a la moneda de la compra cuando difieren."""
+        if self.currency_id == self.purchase.original_currency_id:
+            return self.amount
+        if self.exchange_rate_used:
+            # exchange_rate.currency_from → currency_to con multiplicación.
+            rate = self.exchange_rate_used
+            if rate.rate_type.currency_from_id == self.currency_id and rate.rate_type.currency_to_id == self.purchase.original_currency_id:
+                return (self.amount * rate.rate).quantize(Decimal("0.01"))
+            if rate.rate_type.currency_from_id == self.purchase.original_currency_id and rate.rate_type.currency_to_id == self.currency_id:
+                if rate.rate == 0:
+                    return Decimal("0")
+                return (self.amount / rate.rate).quantize(Decimal("0.01"))
+        # Fallback: usar el servicio (busca default).
+        from apps.pricing.services import CurrencyConversionService
+
+        result = CurrencyConversionService.convert(
+            self.amount, self.currency, self.purchase.original_currency,
+            date=self.payment_date,
+        )
+        return result.amount.quantize(Decimal("0.01"))
+
+
+def _payments_total_in_purchase_currency(purchase: Purchase) -> Decimal:
+    """Suma de pagos de una compra, convertidos a su moneda original."""
+    total = Decimal("0")
+    for payment in purchase.payments.all():
+        total += payment.amount_in_purchase_currency()
+    return total
+
+
+def update_purchase_payment_status(purchase: Purchase) -> None:
+    """Recalcula `purchase.status` en base a los pagos cargados.
+
+    - sin pagos    → mantiene el status que tenía (draft o to_pay).
+    - 0 < pagos < total → paid_partial.
+    - pagos ≥ total → paid.
+    No toca cancelled.
+    """
+    if purchase.status == Purchase.Status.CANCELLED:
+        return
+
+    paid = _payments_total_in_purchase_currency(purchase)
+    new_status = purchase.status
+
+    if paid <= 0:
+        # Si estaba paid_partial/paid pero borraron todos los pagos, vuelve a to_pay.
+        if purchase.status in (Purchase.Status.PAID, Purchase.Status.PAID_PARTIAL):
+            new_status = Purchase.Status.TO_PAY
+    elif paid + Decimal("0.01") >= purchase.total_amount:
+        new_status = Purchase.Status.PAID
+    else:
+        new_status = Purchase.Status.PAID_PARTIAL
+
+    if new_status != purchase.status:
+        Purchase.objects.filter(pk=purchase.pk).update(status=new_status)
