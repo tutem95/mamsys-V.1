@@ -45,6 +45,7 @@ SHARED_APPS = [
     "apps.organizations",  # Organization (TenantMixin), Domain, Membership, Invitation
     "apps.accounts",  # User custom: shared porque email es global
     "apps.permissions",  # Role + ObjectAccess: viven en public junto a Membership
+    "apps.currencies",  # Currency: ARS/USD/EUR son globales del SaaS
 
     "django.contrib.contenttypes",
     "django.contrib.auth",
@@ -68,7 +69,8 @@ TENANT_APPS = [
     "apps.companies",
     "apps.catalog",
     "apps.projects",
-    # próximas fases: procurement, payroll, pricing, ...
+    "apps.pricing",
+    # próximas fases: procurement, payroll, ...
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]

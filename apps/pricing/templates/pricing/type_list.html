@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Cotizaciones · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Tipos de cotización</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            BNA, CCL, Nocito, 70/30, etc. Cada uno tiene su histórico de tasas.
+        </p>
+    </div>
+    <a href="{% url 'pricing:type_create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo tipo
+    </a>
+</header>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Nombre</th>
+                <th class="text-left px-3 py-2 font-medium">Par</th>
+                <th class="text-left px-3 py-2 font-medium">Default</th>
+                <th class="text-left px-3 py-2 font-medium">Cálculo</th>
+                <th class="text-left px-3 py-2 font-medium">Última tasa</th>
+                <th class="text-left px-3 py-2 font-medium">Activo</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in rate_types %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2">
+                        <a href="{% url 'pricing:type_detail' t.pk %}" class="text-brand-mid hover:underline font-medium">
+                            {{ t.name }}
+                        </a>
+                    </td>
+                    <td class="px-3 py-2 text-gray-700">{{ t.currency_from.code }} → {{ t.currency_to.code }}</td>
+                    <td class="px-3 py-2">{% if t.is_default %}<span class="text-green-500">✓</span>{% else %}—{% endif %}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ t.get_calculation_type_display }}</td>
+                    <td class="px-3 py-2 text-gray-700">
+                        {% with last=t.rates.first %}
+                            {% if last %}{{ last.rate }} <span class="text-xs text-gray-500">({{ last.date|date:"d/m/Y" }})</span>{% else %}—{% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="px-3 py-2">{% if t.active %}<span class="text-green-500">✓</span>{% else %}<span class="text-gray-300">—</span>{% endif %}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'pricing:type_detail' t.pk %}" class="text-xs text-brand-mid hover:underline">Cargar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin tipos de cotización todavía.
+                        <a href="{% url 'pricing:type_create' %}" class="text-brand-mid hover:underline">Crear el primero</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

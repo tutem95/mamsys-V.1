@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}{{ rate_type.name }} · Cotizaciones · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'pricing:type_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Tipos de cotización</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">{{ rate_type.name }}</h1>
+            <p class="text-xs text-gray-500">
+                {{ rate_type.currency_from.code }} → {{ rate_type.currency_to.code }}
+                · {{ rate_type.get_calculation_type_display }}
+                {% if rate_type.is_default %}· <span class="text-green-600">default</span>{% endif %}
+            </p>
+        </div>
+        <a href="{% url 'pricing:type_edit' rate_type.pk %}" class="text-sm text-brand-mid hover:underline">Editar tipo</a>
+    </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {# Form rápido de carga #}
+    <div class="lg:col-span-1">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Cargar cotización</h2>
+        <form method="post" class="space-y-3 border border-gray-100 rounded p-4">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-xs">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">{{ field.label }}</label>
+                    {% render_field field class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm focus:border-brand-mid focus:outline-none focus:ring-1 focus:ring-brand-mid" %}
+                    {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit"
+                    class="w-full bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded py-2 transition-colors">
+                Guardar
+            </button>
+        </form>
+    </div>
+
+    {# Histórico #}
+    <div class="lg:col-span-2">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Últimas {{ rates|length }} cotizaciones</h2>
+        <div class="border border-gray-100 rounded overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-pale text-xs text-gray-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-medium">Fecha</th>
+                        <th class="text-right px-3 py-2 font-medium">Tasa</th>
+                        <th class="text-left px-3 py-2 font-medium">Origen</th>
+                        <th class="text-left px-3 py-2 font-medium">Notas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rates %}
+                        <tr class="border-t border-gray-50">
+                            <td class="px-3 py-1.5 text-gray-700">{{ r.date|date:"d/m/Y" }}</td>
+                            <td class="px-3 py-1.5 text-gray-700 text-right font-mono">{{ r.rate }}</td>
+                            <td class="px-3 py-1.5 text-xs text-gray-500">{{ r.get_source_display }}</td>
+                            <td class="px-3 py-1.5 text-xs text-gray-500">{{ r.notes }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-3 py-4 text-center text-xs text-gray-500">Sin cotizaciones cargadas.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
