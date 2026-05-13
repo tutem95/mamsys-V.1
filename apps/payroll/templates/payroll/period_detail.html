@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Quincena {{ period }} · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'payroll:period_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Quincenas</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">
+                {{ period.period_number }}ª quincena de {{ period.month|stringformat:"02d" }}/{{ period.year }}
+            </h1>
+            <p class="text-xs text-gray-500">
+                {{ period.company.name }} · {{ period.start_date|date:"d/m/Y" }} → {{ period.end_date|date:"d/m/Y" }}
+                · Estado <span class="text-gray-700">{{ period.get_status_display }}</span>
+            </p>
+            {% if period.talonario_name %}<p class="text-xs text-gray-500">{{ period.talonario_name }}</p>{% endif %}
+        </div>
+        <div class="flex gap-3 items-center">
+            <form method="post" action="{% url 'payroll:period_regenerate' period.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-brand-mid hover:underline">↻ Regenerar entradas faltantes</button>
+            </form>
+            <a href="{% url 'payroll:period_edit' period.pk %}" class="text-sm text-brand-mid hover:underline">Editar quincena</a>
+        </div>
+    </div>
+</header>
+
+{# Resumen de configuración #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 text-xs">
+    <div class="border border-gray-100 rounded p-2">
+        <p class="text-gray-500">Días totales</p>
+        <p class="text-base font-semibold text-gray-700">{{ period.total_days }}</p>
+        <p class="text-gray-400">L-V {{ period.working_days }} · S {{ period.saturdays }} · F {{ period.holidays }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-2">
+        <p class="text-gray-500">Horas totales</p>
+        <p class="text-base font-semibold text-gray-700">{{ period.total_hours }}</p>
+        <p class="text-gray-400">L-V {{ period.hours_weekday }}h · S {{ period.hours_saturday }}h</p>
+    </div>
+    <div class="border border-gray-100 rounded p-2">
+        <p class="text-gray-500">Plus H. extra</p>
+        <p class="text-base font-semibold text-gray-700">{{ period.plus_overtime_pct }}%</p>
+    </div>
+    <div class="border border-gray-100 rounded p-2">
+        <p class="text-gray-500">Plus presentismo</p>
+        <p class="text-base font-semibold text-gray-700">{{ period.plus_presentismo_pct }}%</p>
+    </div>
+</div>
+
+{# Position plus #}
+{% if period.position_pluses.all %}
+    <section class="mb-6">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Plus por puesto</h2>
+        <div class="flex flex-wrap gap-2">
+            {% for pp in period.position_pluses.all %}
+                <span class="border border-gray-100 rounded px-2 py-1 text-xs">
+                    <span class="text-gray-700">{{ pp.position.name }}:</span>
+                    <span class="font-mono text-gray-700">${{ pp.amount|floatformat:2 }}</span>
+                    <span class="text-gray-400">/día</span>
+                </span>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+{# Tabla de entradas #}
+<section>
+    <header class="flex justify-between items-baseline mb-2">
+        <h2 class="text-sm font-medium text-gray-700">Entradas ({{ entries.count }})</h2>
+        <div class="text-xs text-gray-500 font-mono">
+            Bruto {{ totals.gross|default_if_none:0|floatformat:2 }}
+            · Neto {{ totals.net|default_if_none:0|floatformat:2 }}
+            · Banco {{ totals.bank|default_if_none:0|floatformat:2 }}
+            · Efectivo {{ totals.cash|default_if_none:0|floatformat:2 }}
+        </div>
+    </header>
+
+    <div class="border border-gray-100 rounded overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Empleado</th>
+                    <th class="text-left px-3 py-2 font-medium">Puesto</th>
+                    <th class="text-right px-3 py-2 font-medium">Jornal</th>
+                    <th class="text-right px-3 py-2 font-medium">Días</th>
+                    <th class="text-right px-3 py-2 font-medium">H. extra</th>
+                    <th class="text-right px-3 py-2 font-medium">Bruto</th>
+                    <th class="text-right px-3 py-2 font-medium">Presentismo</th>
+                    <th class="text-right px-3 py-2 font-medium">Neto</th>
+                    <th class="text-right px-3 py-2 font-medium">Banco</th>
+                    <th class="text-right px-3 py-2 font-medium">Efectivo</th>
+                    <th class="px-3 py-2 w-16"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                    <tr class="border-t border-gray-50 hover:bg-gray-50 {% if e.suspended %}opacity-50{% endif %}">
+                        <td class="px-3 py-2 text-gray-700">{{ e.employee.full_name }}{% if e.suspended %}<span class="text-xs text-gray-400 ml-1">(susp.)</span>{% endif %}</td>
+                        <td class="px-3 py-2 text-xs text-gray-500">{{ e.position_snapshot|default:"—" }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.value_jornal|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.days_worked|floatformat:1 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.overtime_hours|floatformat:1 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.gross|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.presentismo_subtotal|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold">{{ e.net|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.bank_amount|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ e.cash_amount|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right">
+                            <a href="{% url 'payroll:entry_edit' e.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" class="px-3 py-6 text-center text-xs text-gray-500">
+                            Sin entradas. <a href="?regenerate=1" class="text-brand-mid hover:underline">Regenerar</a>.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

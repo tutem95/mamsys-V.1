@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if period %}Editar quincena{% else %}Nueva quincena{% endif %} · Mamsys
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl">
+    <header class="mb-6">
+        <a href="{% url 'payroll:period_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Quincenas</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">
+            {% if period %}Editar quincena{% else %}Nueva quincena{% endif %}
+        </h1>
+        {% if not period %}
+            <p class="text-xs text-gray-500 mt-1">
+                Al guardar, el sistema pre-genera una entrada por cada empleado activo de la sociedad.
+            </p>
+        {% endif %}
+    </header>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Quincena</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% for field in form %}{% include "payroll/_field.html" with field=field %}{% endfor %}
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Plus por puesto</h2>
+            <p class="text-xs text-gray-500 mb-2">Adicional fijo por día trabajado, por puesto.</p>
+            {{ plus_set.management_form }}
+            <div class="space-y-2">
+                {% for fset in plus_set %}
+                    <div class="grid grid-cols-12 gap-2 items-start border border-gray-100 rounded p-2">
+                        {% for hidden in fset.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="col-span-5">{{ fset.position }}</div>
+                        <div class="col-span-3">{% render_field fset.amount placeholder="Monto" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-3">{{ fset.currency }}</div>
+                        <div class="col-span-1 text-right">
+                            {% if fset.instance.pk %}<label class="text-xs text-red-600">{{ fset.DELETE }} Borrar</label>{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
+            <a href="{% url 'payroll:period_list' %}" class="text-xs text-gray-500 hover:text-brand-mid self-center">Cancelar</a>
+            <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white font-medium rounded px-4 py-2 transition-colors">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
@@ -13,8 +13,18 @@ from .forms import (
     EmployeeBankingForm,
     EmployeeForm,
     EmployeePersonalDataForm,
+    PayrollEntryForm,
+    PayrollPeriodForm,
+    PositionPlusFormSet,
 )
-from .models import Employee, EmployeeBanking, EmployeePersonalData
+from .models import (
+    Employee,
+    EmployeeBanking,
+    EmployeePersonalData,
+    PayrollEntry,
+    PayrollPeriod,
+    pre_generate_entries_for_period,
+)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -141,3 +151,139 @@ def _employee_form(request, instance: Employee | None):
         "emergency_set": emergency_set,
         "employee": instance,
     })
+
+
+# ---------------------------------------------------------------------------
+# Quincenas (Turno B)
+# ---------------------------------------------------------------------------
+
+
+@method_decorator(login_required, name="dispatch")
+class PayrollPeriodListView(ListView):
+    model = PayrollPeriod
+    template_name = "payroll/period_list.html"
+    paginate_by = 50
+    context_object_name = "periods"
+
+    def get_queryset(self):
+        return (
+            super().get_queryset()
+            .select_related("company")
+            .annotate(entries_count=models.Count("entries"))
+        )
+
+
+@login_required
+def period_create(request):
+    """Crea una quincena nueva y pre-genera entradas para empleados activos."""
+    if request.method == "POST":
+        form = PayrollPeriodForm(request.POST)
+        plus_set = PositionPlusFormSet(request.POST, instance=PayrollPeriod())
+        if form.is_valid() and plus_set.is_valid():
+            with transaction.atomic():
+                period = form.save(commit=False)
+                period.created_by = request.user
+                period.updated_by = request.user
+                period.save()
+                plus_set.instance = period
+                plus_set.save()
+                # Generar las entradas para cada empleado activo.
+                created = pre_generate_entries_for_period(period)
+            messages.success(
+                request,
+                f"Quincena creada con {len(created)} entrada{'s' if len(created) != 1 else ''} pre-generadas.",
+            )
+            return redirect("payroll:period_detail", pk=period.pk)
+    else:
+        form = PayrollPeriodForm()
+        plus_set = PositionPlusFormSet(instance=PayrollPeriod())
+
+    return render(request, "payroll/period_form.html", {
+        "form": form, "plus_set": plus_set, "period": None,
+    })
+
+
+@login_required
+def period_edit(request, pk: int):
+    period = get_object_or_404(PayrollPeriod, pk=pk)
+    if request.method == "POST":
+        form = PayrollPeriodForm(request.POST, instance=period)
+        plus_set = PositionPlusFormSet(request.POST, instance=period)
+        if form.is_valid() and plus_set.is_valid():
+            with transaction.atomic():
+                p = form.save(commit=False)
+                p.updated_by = request.user
+                p.save()
+                plus_set.save()
+                # Si cambiaron los pluses o configuración, recalcular entradas.
+                for entry in period.entries.all():
+                    entry.save()  # dispara recalculate()
+            messages.success(request, "Quincena actualizada y entradas recalculadas.")
+            return redirect("payroll:period_detail", pk=period.pk)
+    else:
+        form = PayrollPeriodForm(instance=period)
+        plus_set = PositionPlusFormSet(instance=period)
+
+    return render(request, "payroll/period_form.html", {
+        "form": form, "plus_set": plus_set, "period": period,
+    })
+
+
+@login_required
+def period_detail(request, pk: int):
+    period = get_object_or_404(
+        PayrollPeriod.objects.select_related("company").prefetch_related("position_pluses__position"),
+        pk=pk,
+    )
+    entries = (
+        period.entries
+        .select_related("employee", "employee__personal_data", "employee__position", "currency")
+        .order_by("employee__personal_data__last_name", "employee__personal_data__first_name", "employee_id")
+    )
+
+    # Totales rápidos
+    totals = entries.aggregate(
+        gross=models.Sum("gross"),
+        net=models.Sum("net"),
+        bank=models.Sum("bank_amount"),
+        cash=models.Sum("cash_amount"),
+    )
+
+    return render(request, "payroll/period_detail.html", {
+        "period": period,
+        "entries": entries,
+        "totals": totals,
+    })
+
+
+@login_required
+def period_regenerate_entries(request, pk: int):
+    """Re-genera entradas faltantes (empleados nuevos desde que se creó la quincena)."""
+    period = get_object_or_404(PayrollPeriod, pk=pk)
+    if request.method == "POST":
+        created = pre_generate_entries_for_period(period)
+        if created:
+            messages.success(request, f"{len(created)} entrada{'s' if len(created) != 1 else ''} agregadas.")
+        else:
+            messages.info(request, "No había empleados nuevos para sumar.")
+    return redirect("payroll:period_detail", pk=period.pk)
+
+
+@login_required
+def entry_edit(request, pk: int):
+    entry = get_object_or_404(
+        PayrollEntry.objects.select_related("employee__personal_data", "payroll_period"),
+        pk=pk,
+    )
+    if request.method == "POST":
+        form = PayrollEntryForm(request.POST, instance=entry)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user
+            obj.save()
+            messages.success(request, "Entrada guardada y recalculada.")
+            return redirect("payroll:period_detail", pk=entry.payroll_period_id)
+    else:
+        form = PayrollEntryForm(instance=entry)
+
+    return render(request, "payroll/entry_form.html", {"form": form, "entry": entry})
