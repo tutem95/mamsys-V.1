@@ -89,6 +89,7 @@ class ExtraordinaryConceptAdmin(admin.ModelAdmin):
 class TrackingCategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "color", "active")
     list_filter = ("active",)
+    search_fields = ("name",)
 
 
 @admin.register(Supplier)

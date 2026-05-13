@@ -5,7 +5,9 @@ from .models import (
     Employee,
     EmployeeBanking,
     EmployeePersonalData,
+    PayrollAllocation,
     PayrollEntry,
+    PayrollExtraordinary,
     PayrollPeriod,
     PositionPlus,
 )
@@ -87,6 +89,20 @@ class PayrollPeriodAdmin(admin.ModelAdmin):
     inlines = [PositionPlusInline, PayrollEntryInline]
 
 
+class PayrollExtraordinaryInline(admin.TabularInline):
+    model = PayrollExtraordinary
+    extra = 0
+    autocomplete_fields = ("concept",)
+
+
+class PayrollAllocationInline(admin.TabularInline):
+    model = PayrollAllocation
+    extra = 0
+    autocomplete_fields = ("project", "subrubro", "tracking_category")
+    fields = ("project", "pct", "jornal_amount", "net_amount", "social_charges_amount", "total_amount", "social_charges_status")
+    readonly_fields = ("jornal_amount", "net_amount", "total_amount")
+
+
 @admin.register(PayrollEntry)
 class PayrollEntryAdmin(admin.ModelAdmin):
     list_display = ("payroll_period", "employee", "value_jornal", "days_worked", "gross", "net")
@@ -98,3 +114,18 @@ class PayrollEntryAdmin(admin.ModelAdmin):
         "extraordinary_subtotal", "gross", "net",
         "overtime_amount", "cash_amount",
     )
+    inlines = [PayrollExtraordinaryInline, PayrollAllocationInline]
+
+
+@admin.register(PayrollAllocation)
+class PayrollAllocationAdmin(admin.ModelAdmin):
+    list_display = ("payroll_entry", "project", "pct", "net_amount", "social_charges_amount", "social_charges_status")
+    list_filter = ("social_charges_status", "project")
+    autocomplete_fields = ("payroll_entry", "project", "subrubro", "tracking_category")
+
+
+@admin.register(PayrollExtraordinary)
+class PayrollExtraordinaryAdmin(admin.ModelAdmin):
+    list_display = ("payroll_entry", "concept", "amount", "quantity")
+    list_filter = ("concept__type",)
+    autocomplete_fields = ("payroll_entry", "concept")

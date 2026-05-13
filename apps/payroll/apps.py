@@ -6,3 +6,6 @@ class PayrollConfig(AppConfig):
     name = "apps.payroll"
     label = "payroll"
     verbose_name = "Nómina"
+
+    def ready(self) -> None:  # noqa: D401
+        from . import signals  # noqa: F401

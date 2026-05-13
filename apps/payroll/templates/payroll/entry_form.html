@@ -88,6 +88,60 @@
         </section>
 
         <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Extraordinarios</h2>
+            <p class="text-xs text-gray-500 mb-2">Ingresos (Bono, Aguinaldo, etc.) y egresos (Adelanto, OSDE, etc.). Se suman/restan al neto.</p>
+            {{ extras_set.management_form }}
+            <div class="space-y-2">
+                {% for fset in extras_set %}
+                    <div class="grid grid-cols-12 gap-2 items-start border border-gray-100 rounded p-2">
+                        {% for hidden in fset.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="col-span-4">{{ fset.concept }}</div>
+                        <div class="col-span-3">{% render_field fset.amount placeholder="Monto" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-2">{% render_field fset.quantity placeholder="Cant. (opc)" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-2">{% render_field fset.notes placeholder="Notas" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-1 text-right">
+                            {% if fset.instance.pk %}<label class="text-xs text-red-600">{{ fset.DELETE }} ✕</label>{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Total extraordinario actual: <span class="font-mono">{{ entry.extraordinary_subtotal|floatformat:2 }}</span></p>
+        </section>
+
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Imputación a obras</h2>
+            <p class="text-xs text-gray-500 mb-2">La suma de % debe dar 100 si hay imputaciones cargadas.</p>
+            {% if alloc_set.non_form_errors %}
+                <div class="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-xs mb-2">
+                    {{ alloc_set.non_form_errors }}
+                </div>
+            {% endif %}
+            {{ alloc_set.management_form }}
+            <div class="space-y-2">
+                {% for fset in alloc_set %}
+                    <div class="grid grid-cols-12 gap-2 items-start border border-gray-100 rounded p-2">
+                        {% for hidden in fset.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="col-span-4">{{ fset.project }}</div>
+                        <div class="col-span-2">{% render_field fset.pct placeholder="% (0-100)" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-2">{{ fset.subrubro }}</div>
+                        <div class="col-span-2">{{ fset.tracking_category }}</div>
+                        <div class="col-span-1">{% render_field fset.notes placeholder="Notas" class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm" %}</div>
+                        <div class="col-span-1 text-right">
+                            {% if fset.instance.pk %}<label class="text-xs text-red-600">{{ fset.DELETE }} ✕</label>{% endif %}
+                        </div>
+                        {% if fset.instance.pk %}
+                            <div class="col-span-12 text-xs text-gray-500 pl-2">
+                                Jornal: <span class="font-mono">{{ fset.instance.jornal_amount|floatformat:2 }}</span>
+                                · Neto: <span class="font-mono">{{ fset.instance.net_amount|floatformat:2 }}</span>
+                                · CS ({{ fset.instance.get_social_charges_status_display }}): <span class="font-mono">{{ fset.instance.social_charges_amount|floatformat:2 }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section>
             <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Comentarios</h2>
             {% include "payroll/_field.html" with field=form.receipt_observations %}
             <div class="mt-2">{% include "payroll/_field.html" with field=form.internal_notes %}</div>

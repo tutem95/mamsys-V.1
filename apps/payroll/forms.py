@@ -3,12 +3,16 @@ from __future__ import annotations
 from django import forms
 from django.forms import inlineformset_factory
 
+from decimal import Decimal
+
 from .models import (
     Employee,
     EmployeeBanking,
     EmployeePersonalData,
     EmergencyContact,
+    PayrollAllocation,
     PayrollEntry,
+    PayrollExtraordinary,
     PayrollPeriod,
     PositionPlus,
 )
@@ -128,3 +132,62 @@ class PayrollEntryQuickForm(forms.ModelForm):
     class Meta:
         model = PayrollEntry
         fields = ("value_jornal", "days_worked", "overtime_hours", "vacations_amount", "late_hours_amount", "bank_amount")
+
+
+# ---------------------------------------------------------------------------
+# Allocations + Extraordinarios (Turno C)
+# ---------------------------------------------------------------------------
+
+
+class _AllocationFormSet(forms.BaseInlineFormSet):
+    """Valida que la suma de pct sea 100 (con tolerancia de 0.01)."""
+
+    TOLERANCE = Decimal("0.01")
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        total = Decimal("0")
+        rows_with_data = 0
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            pct = form.cleaned_data.get("pct") or Decimal("0")
+            if pct > 0 or form.cleaned_data.get("project"):
+                rows_with_data += 1
+                total += pct
+        if rows_with_data == 0:
+            # Sin allocations es OK (empleado sin imputar a obra).
+            return
+        if abs(total - Decimal("100")) > self.TOLERANCE:
+            raise forms.ValidationError(
+                f"La suma de % debe ser 100. Suma actual: {total}.",
+            )
+
+
+class PayrollAllocationForm(forms.ModelForm):
+    class Meta:
+        model = PayrollAllocation
+        fields = ("project", "subrubro", "tracking_category", "pct", "notes")
+
+
+PayrollAllocationFormSet = inlineformset_factory(
+    PayrollEntry, PayrollAllocation,
+    form=PayrollAllocationForm,
+    formset=_AllocationFormSet,
+    extra=2, can_delete=True,
+)
+
+
+class PayrollExtraordinaryForm(forms.ModelForm):
+    class Meta:
+        model = PayrollExtraordinary
+        fields = ("concept", "amount", "quantity", "notes")
+
+
+PayrollExtraordinaryFormSet = inlineformset_factory(
+    PayrollEntry, PayrollExtraordinary,
+    form=PayrollExtraordinaryForm,
+    extra=2, can_delete=True,
+)

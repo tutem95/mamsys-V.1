@@ -453,9 +453,21 @@ class PayrollEntry(TimestampedModel):
     # ----- Cálculos -----
 
     def recalculate(self) -> None:
-        """Recalcula subtotales, neto y conteo de billetes. NO guarda."""
+        """Recalcula subtotales, neto y conteo de billetes. NO guarda.
+
+        Lee siempre los extraordinarios actuales (no usa el cache de
+        `extraordinary_subtotal`), así nunca queda stale.
+        """
         period = self.payroll_period
         jornal = self.value_jornal or Decimal("0")
+
+        # Extraordinarios: suma de income - expense.
+        # Solo si la entry ya existe en DB; si está siendo creada, queda 0.
+        if self.pk is not None:
+            extras_total = Decimal("0")
+            for x in self.extraordinaries.select_related("concept"):
+                extras_total += x.signed_amount
+            self.extraordinary_subtotal = extras_total.quantize(Decimal("0.01"))
 
         # Asistencia: días × jornal.
         self.attendance_subtotal = (self.days_worked * jornal).quantize(Decimal("0.01"))
@@ -523,12 +535,26 @@ class PayrollEntry(TimestampedModel):
             self._take_snapshot()
         self.recalculate()
         super().save(*args, **kwargs)
-        # Cache del último jornal en el empleado.
+        # Propagar a las allocations (si ya existen) y a la cache del empleado.
+        self.recalculate_allocations()
         if self.value_jornal:
             Employee.objects.filter(pk=self.employee_id).update(
                 last_known_salary=self.value_jornal,
                 last_known_currency_id=self.currency_id,
             )
+
+    def recalculate_allocations(self) -> None:
+        """Reparte gross/net a cada allocation según su pct. No toca CS.
+
+        El monto de CS lo setea el servicio de prorrateo cuando Tesorería
+        carga el SocialChargesPayment (Turno D).
+        """
+        for alloc in self.allocations.all():
+            pct = (alloc.pct or Decimal("0")) / Decimal("100")
+            alloc.jornal_amount = (self.gross * pct).quantize(Decimal("0.01"))
+            alloc.net_amount = (self.net * pct).quantize(Decimal("0.01"))
+            alloc.total_amount = (alloc.net_amount + alloc.social_charges_amount).quantize(Decimal("0.01"))
+            alloc.save(update_fields=["jornal_amount", "net_amount", "total_amount", "updated_at"])
 
     def _take_snapshot(self) -> None:
         emp = self.employee
@@ -545,6 +571,101 @@ class PayrollEntry(TimestampedModel):
             self.primary_rubro_snapshot = emp.primary_rubro.name
         if not self.team_snapshot:
             self.team_snapshot = ", ".join(t.name for t in emp.teams.all())
+
+
+class PayrollAllocation(TimestampedModel):
+    """Imputación de la jornada del empleado a una obra puntual.
+
+    La suma de `pct` de todas las allocations de una entry debe ser 100
+    (con tolerancia). `jornal_amount` y `net_amount` se derivan del gross
+    y net de la entry vía recalculate_allocations().
+    """
+
+    class CSStatus(models.TextChoices):
+        ESTIMATED = "estimated", "Estimado"
+        REAL = "real", "Real"
+
+    payroll_entry = models.ForeignKey(
+        "PayrollEntry", on_delete=models.CASCADE,
+        related_name="allocations",
+    )
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.PROTECT,
+        related_name="payroll_allocations",
+    )
+    subrubro = models.ForeignKey(
+        "catalog.Subrubro", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="payroll_allocations",
+    )
+    tracking_category = models.ForeignKey(
+        "catalog.TrackingCategory", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="payroll_allocations",
+    )
+    # task FK queda como placeholder hasta Fase 6.
+    task_id = models.PositiveIntegerField(null=True, blank=True)
+
+    pct = models.DecimalField(
+        "% de la jornada", max_digits=5, decimal_places=2, default=Decimal("0"),
+        help_text="Porcentaje del jornal (0–100).",
+    )
+    jornal_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0"))
+    net_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0"))
+    social_charges_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0"))
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0"))
+    social_charges_status = models.CharField(
+        max_length=20, choices=CSStatus.choices, default=CSStatus.ESTIMATED,
+    )
+
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Imputación a obra"
+        verbose_name_plural = "Imputaciones a obras"
+        ordering = ("payroll_entry_id", "id")
+        indexes = [
+            models.Index(fields=["project", "payroll_entry"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.project} ({self.pct}%)"
+
+
+class PayrollExtraordinary(TimestampedModel):
+    """Ingreso o egreso extraordinario de la quincena.
+
+    El `type` se hereda del `concept` (income / expense).
+    Una entry puede tener N extraordinarios (ej: BONO + Adelanto).
+    """
+
+    payroll_entry = models.ForeignKey(
+        "PayrollEntry", on_delete=models.CASCADE,
+        related_name="extraordinaries",
+    )
+    concept = models.ForeignKey(
+        "catalog.ExtraordinaryConcept", on_delete=models.PROTECT,
+        related_name="payroll_extraordinaries",
+    )
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    quantity = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True,
+        help_text="Cantidad (ej.: días de Presentismo). Opcional.",
+    )
+    notes = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Extraordinario"
+        verbose_name_plural = "Extraordinarios"
+        ordering = ("payroll_entry_id", "id")
+
+    def __str__(self) -> str:
+        sign = "+" if self.concept.type == "income" else "-"
+        return f"{sign}{self.amount} {self.concept.name}"
+
+    @property
+    def signed_amount(self) -> Decimal:
+        if self.concept.type == "income":
+            return self.amount
+        return -self.amount
 
 
 def pre_generate_entries_for_period(period: PayrollPeriod, default_currency=None) -> list[PayrollEntry]:

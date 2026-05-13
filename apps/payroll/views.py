@@ -277,13 +277,30 @@ def entry_edit(request, pk: int):
     )
     if request.method == "POST":
         form = PayrollEntryForm(request.POST, instance=entry)
-        if form.is_valid():
-            obj = form.save(commit=False)
-            obj.updated_by = request.user
-            obj.save()
-            messages.success(request, "Entrada guardada y recalculada.")
-            return redirect("payroll:period_detail", pk=entry.payroll_period_id)
+        extras_set = PayrollExtraordinaryFormSet(request.POST, instance=entry, prefix="extras")
+        alloc_set = PayrollAllocationFormSet(request.POST, instance=entry, prefix="allocs")
+        if form.is_valid() and extras_set.is_valid() and alloc_set.is_valid():
+            with transaction.atomic():
+                obj = form.save(commit=False)
+                obj.updated_by = request.user
+                obj.save()
+                # Extraordinarios primero: sus signals recalculan la entry.
+                extras_set.save()
+                # Allocations: signals propagan jornal/net_amount.
+                alloc_set.save()
+                # Final recalc para asegurar consistencia tras todo lo anterior.
+                obj.refresh_from_db()
+                obj.save()
+            messages.success(request, "Liquidación guardada y recalculada.")
+            return redirect("payroll:entry_edit", pk=entry.pk)
     else:
         form = PayrollEntryForm(instance=entry)
+        extras_set = PayrollExtraordinaryFormSet(instance=entry, prefix="extras")
+        alloc_set = PayrollAllocationFormSet(instance=entry, prefix="allocs")
 
-    return render(request, "payroll/entry_form.html", {"form": form, "entry": entry})
+    return render(request, "payroll/entry_form.html", {
+        "form": form,
+        "extras_set": extras_set,
+        "alloc_set": alloc_set,
+        "entry": entry,
+    })
