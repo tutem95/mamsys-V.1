@@ -66,7 +66,8 @@ TENANT_APPS = [
     "django.contrib.admin",
     "apps.core",
     "apps.companies",
-    # próximas fases: catalog, projects, procurement, payroll, pricing, ...
+    "apps.catalog",
+    # próximas fases: projects, procurement, payroll, pricing, ...
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]

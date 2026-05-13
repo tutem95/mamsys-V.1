@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load catalog_extras %}
+
+{% block title %}{{ title }} · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <a href="{% url 'catalog:index' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Catálogos</a>
+        <h1 class="text-xl font-semibold text-gray-700">{{ title }}</h1>
+    </div>
+    <a href="{% url create_url %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo
+    </a>
+</header>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                {% for _, label in columns %}
+                    <th class="text-left px-3 py-2 font-medium">{{ label }}</th>
+                {% endfor %}
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for obj in object_list %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    {% for field, _ in columns %}
+                        <td class="px-3 py-2 text-gray-700">
+                            {% with value=obj|getattr:field %}
+                                {% if value == True %}<span class="text-green-500">✓</span>
+                                {% elif value == False %}<span class="text-gray-300">—</span>
+                                {% else %}{{ value|default_if_none:"—" }}{% endif %}
+                            {% endwith %}
+                        </td>
+                    {% endfor %}
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url edit_url_name obj.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="{{ columns|length|add:1 }}" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin registros. <a href="{% url create_url %}" class="text-brand-mid hover:underline">Crear el primero</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+    <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        <div class="space-x-2">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="text-brand-mid hover:underline">← Anterior</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="text-brand-mid hover:underline">Siguiente →</a>
+            {% endif %}
+        </div>
+    </nav>
+{% endif %}
+{% endblock %}

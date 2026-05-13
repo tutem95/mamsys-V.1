@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogos · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <h1 class="text-xl font-semibold text-gray-700">Catálogos</h1>
+    <p class="text-xs text-gray-500 mt-1">Datos maestros que alimentan al resto del sistema.</p>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    {% for card in cards %}
+        <a href="{% url card.url %}"
+           class="block border border-gray-100 rounded p-4 hover:border-brand-light hover:bg-brand-pale transition-colors">
+            <p class="text-xs uppercase tracking-wider text-gray-500">{{ card.label }}</p>
+            <p class="text-2xl font-semibold text-gray-700 mt-1">{{ card.count }}</p>
+            <p class="text-xs text-brand-mid mt-2">Ver →</p>
+        </a>
+    {% endfor %}
+</div>
+
+<p class="text-xs text-gray-500 mt-6">
+    Próximos catálogos que se sumarán: Monedas y cotizaciones, Proveedores,
+    Materiales, Subcontratos, Bancos y cuentas, Puestos, Equipos, Depósitos,
+    Conceptos extraordinarios.
+</p>
+{% endblock %}
