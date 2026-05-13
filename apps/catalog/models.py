@@ -142,6 +142,30 @@ class Bank(CatalogItem):
         ]
 
 
+class Team(CatalogItem):
+    """Equipo de trabajo (ej.: "Equipo Adan", "Equipo Naty").
+
+    `leader` apunta a un Employee opcional (el RT / líder). FK por string para
+    evitar ciclo de imports (Employee.teams es M2M con Team).
+    """
+
+    leader = models.ForeignKey(
+        "payroll.Employee",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="led_teams",
+        help_text="Representante técnico o líder del equipo.",
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta(CatalogItem.Meta):
+        verbose_name = "Equipo"
+        verbose_name_plural = "Equipos"
+        constraints = [
+            models.UniqueConstraint(fields=["name"], name="team_unique_name"),
+        ]
+
+
 class ExtraordinaryConcept(CatalogItem):
     """Concepto extraordinario de quincena: Adelanto, Bono, Aguinaldo, etc."""
 

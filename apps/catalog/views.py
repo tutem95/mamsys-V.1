@@ -120,6 +120,14 @@ CATALOGS: dict[str, dict[str, Any]] = {
         "columns": [("name", "Nombre"), ("unit", "Unidad"), ("typical_supplier", "Proveedor habitual"), ("last_known_price", "Último $")],
         "select_related": ("unit", "typical_supplier"),
     },
+    "team": {
+        "model": catalog_models.Team,
+        "form": catalog_forms.TeamForm,
+        "label_plural": "Equipos",
+        "label_singular": "equipo",
+        "columns": [("name", "Nombre"), ("leader", "Líder"), ("active", "Activo")],
+        "select_related": ("leader",),
+    },
 }
 
 

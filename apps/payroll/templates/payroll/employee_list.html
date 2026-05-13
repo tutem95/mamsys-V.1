@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Empleados · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Empleados</h1>
+        <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} empleado{{ paginator.count|pluralize }}.</p>
+    </div>
+    <a href="{% url 'payroll:create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo empleado
+    </a>
+</header>
+
+<form method="get" class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4 text-xs items-end">
+    <div>
+        <label class="block text-gray-500 mb-1">Buscar</label>
+        <input type="text" name="q" value="{{ current_q }}" placeholder="Nombre, ID interno…"
+               class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Estado</label>
+        <select name="estado" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for s in statuses %}<option value="{{ s.pk }}" {% if current_estado == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Sociedad</label>
+        <select name="sociedad" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for c in companies %}<option value="{{ c.pk }}" {% if current_sociedad == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Puesto</label>
+        <select name="puesto" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for p in positions %}<option value="{{ p.pk }}" {% if current_puesto == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Equipo</label>
+        <select name="equipo" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for t in teams %}<option value="{{ t.pk }}" {% if current_equipo == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-span-2 md:col-span-5 flex gap-2 justify-end">
+        <a href="{% url 'payroll:list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>
+        <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1.5">Filtrar</button>
+    </div>
+</form>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Empleado</th>
+                <th class="text-left px-3 py-2 font-medium">ID interno</th>
+                <th class="text-left px-3 py-2 font-medium">Sociedad</th>
+                <th class="text-left px-3 py-2 font-medium">Puesto</th>
+                <th class="text-left px-3 py-2 font-medium">Equipos</th>
+                <th class="text-left px-3 py-2 font-medium">Estado</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in employees %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2">
+                        <a href="{% url 'payroll:detail' e.pk %}" class="text-brand-mid hover:underline">{{ e.full_name }}</a>
+                    </td>
+                    <td class="px-3 py-2 text-gray-700">{{ e.internal_id|default:"—" }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ e.company.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ e.position.name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500">
+                        {% for t in e.teams.all %}{{ t.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-700">{{ e.status.name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'payroll:edit' e.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin empleados. <a href="{% url 'payroll:create' %}" class="text-brand-mid hover:underline">Crear el primero</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+    <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        <div class="space-x-2">
+            {% if page_obj.has_previous %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
+        </div>
+    </nav>
+{% endif %}
+{% endblock %}

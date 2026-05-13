@@ -14,6 +14,7 @@ from .models import (
     Subcontract,
     Subrubro,
     Supplier,
+    Team,
     TrackingCategory,
     Unit,
 )
@@ -116,3 +117,10 @@ class SubcontractForm(forms.ModelForm):
             "active", "order",
         )
         widgets = {"description": forms.Textarea(attrs={"rows": 2})}
+
+
+class TeamForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = ("name", "code", "leader", "notes", "active", "order")
+        widgets = {"notes": forms.Textarea(attrs={"rows": 2})}

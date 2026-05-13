@@ -12,6 +12,7 @@ from .models import (
     Subcontract,
     Subrubro,
     Supplier,
+    Team,
     TrackingCategory,
     Unit,
 )
@@ -112,3 +113,11 @@ class SubcontractAdmin(admin.ModelAdmin):
     list_filter = ("active", "unit")
     search_fields = ("name",)
     autocomplete_fields = ("unit", "typical_supplier")
+
+
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("name", "leader", "active")
+    list_filter = ("active",)
+    search_fields = ("name",)
+    autocomplete_fields = ("leader",)
