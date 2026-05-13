@@ -1,0 +1,35 @@
+# Core
+Django>=5.1,<5.3
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+django-environ>=0.11
+
+# Multi-tenancy
+django-tenants>=3.7
+
+# Auth & permissions
+django-allauth>=65.0
+django-rules>=3.4
+
+# API
+djangorestframework>=3.15
+django-filter>=24.3
+
+# Frontend / templates
+django-htmx>=1.21
+django-widget-tweaks>=1.5
+
+# Background jobs
+celery[redis]>=5.4
+redis>=5.0
+django-celery-beat>=2.7
+django-celery-results>=2.5
+
+# PDF / Excel
+WeasyPrint>=63.0
+openpyxl>=3.1
+
+# Utilities
+django-extensions>=3.2
+django-axes>=7.0
+argon2-cffi>=23.1
