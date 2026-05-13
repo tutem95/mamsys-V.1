@@ -1,4 +1,4 @@
-"""Tipos de cotización y cotizaciones por fecha.
+"""Tipos de cotización, cotizaciones por fecha, y precios polimórficos.
 
 Vive en TENANT: cada organización configura sus propios tipos (BNA, CCL,
 Nocito, 70/30) y carga las cotizaciones diarias que usa para conversión.
@@ -12,6 +12,8 @@ from __future__ import annotations
 from datetime import date as _date
 from decimal import Decimal
 
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from apps.core.models import TimestampedModel
@@ -101,3 +103,66 @@ class ExchangeRate(TimestampedModel):
     def to_amount(self, amount: Decimal | float | int) -> Decimal:
         """Convierte un monto en `currency_from` a `currency_to` usando esta cotización."""
         return Decimal(amount) * self.rate
+
+
+class Price(TimestampedModel):
+    """Precio polimórfico de un item del catálogo (Material, Subcontract, Position…).
+
+    El target se vincula con GenericForeignKey porque la app de pricing no debe
+    importar las apps que lo usan (evita dependencia circular).
+
+    Lo poblan principalmente las compras (Fase 4) vía signal cuando se cargan
+    PurchaseItems. También se puede cargar manualmente (p.ej. ofertas, importes
+    importados de Sheets, etc.).
+    """
+
+    class Source(models.TextChoices):
+        PURCHASE = "purchase", "Compra"
+        MANUAL = "manual", "Manual"
+        IMPORT = "import", "Importado"
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    item = GenericForeignKey("content_type", "object_id")
+
+    amount = models.DecimalField(max_digits=15, decimal_places=4)
+    currency = models.ForeignKey(
+        "currencies.Currency",
+        on_delete=models.PROTECT,
+        related_name="prices",
+    )
+    effective_date = models.DateField(db_index=True)
+
+    # Origen
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    supplier = models.ForeignKey(
+        "catalog.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prices",
+        help_text="Proveedor de referencia (no obligatorio).",
+    )
+    # FK a PurchaseItem cuando exista (Fase 4). Por ahora dejamos un puntero
+    # genérico opcional via int para no acoplar; cuando exista la app, se
+    # convierte a FK real con una migración.
+    source_purchase_item_id = models.PositiveIntegerField(null=True, blank=True)
+
+    is_reference = models.BooleanField(
+        default=True,
+        help_text="Si está marcado, este precio se considera para cálculos de receta. "
+                  "Marcalo en False para precios circunstanciales (ofertas puntuales).",
+    )
+    notes = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = "Precio"
+        verbose_name_plural = "Precios"
+        ordering = ("-effective_date", "-created_at")
+        indexes = [
+            models.Index(fields=["content_type", "object_id", "-effective_date"]),
+            models.Index(fields=["-effective_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.item} @ {self.effective_date}: {self.amount} {self.currency.code}"

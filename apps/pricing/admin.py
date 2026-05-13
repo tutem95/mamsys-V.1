@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ExchangeRate, ExchangeRateType
+from .models import ExchangeRate, ExchangeRateType, Price
 
 
 @admin.register(ExchangeRateType)
@@ -17,3 +17,12 @@ class ExchangeRateAdmin(admin.ModelAdmin):
     search_fields = ("rate_type__name", "notes")
     date_hierarchy = "date"
     ordering = ("-date",)
+
+
+@admin.register(Price)
+class PriceAdmin(admin.ModelAdmin):
+    list_display = ("item", "amount", "currency", "effective_date", "source", "is_reference")
+    list_filter = ("source", "is_reference", "currency")
+    search_fields = ("notes",)
+    date_hierarchy = "effective_date"
+    readonly_fields = ("content_type", "object_id")
