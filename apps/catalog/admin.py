@@ -53,12 +53,14 @@ class BusinessComponentAdmin(admin.ModelAdmin):
 class ProjectStatusAdmin(admin.ModelAdmin):
     list_display = ("name", "active", "order")
     list_filter = ("active",)
+    search_fields = ("name",)
 
 
 @admin.register(EmployeeStatus)
 class EmployeeStatusAdmin(admin.ModelAdmin):
     list_display = ("name", "active", "order")
     list_filter = ("active",)
+    search_fields = ("name",)
 
 
 @admin.register(Position)

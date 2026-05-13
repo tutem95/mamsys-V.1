@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'projects:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Obras</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <h1 class="text-2xl font-semibold text-gray-700">
+            {{ project.name }}
+            {% if project.is_archived %}<span class="text-xs font-normal text-gray-400 ml-2">archivada</span>{% endif %}
+        </h1>
+        <a href="{% url 'projects:edit' project.pk %}" class="text-sm text-brand-mid hover:underline">Editar</a>
+    </div>
+    {% if project.code %}<p class="text-xs text-gray-500 mt-1">{{ project.code }}</p>{% endif %}
+</header>
+
+{# Tabs placeholder — se activan en las próximas fases. #}
+<nav class="border-b border-gray-100 mb-4 flex gap-4 text-xs">
+    <span class="border-b-2 border-brand-mid pb-1 -mb-px text-brand-mid font-medium">Resumen</span>
+    <span class="text-gray-400 pb-1">Compras (Fase 4)</span>
+    <span class="text-gray-400 pb-1">MO (Fase 5)</span>
+    <span class="text-gray-400 pb-1">Presupuestos (Fase 8)</span>
+    <span class="text-gray-400 pb-1">Seguimiento (Fase 7)</span>
+</nav>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+    <div>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Identificación</h2>
+        <dl class="text-sm space-y-1.5">
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Sociedad</dt><dd class="text-gray-700">{{ project.company.name }}</dd>
+            </div>
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Estado</dt><dd class="text-gray-700">{{ project.status.name|default:"—" }}</dd>
+            </div>
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Responsable</dt><dd class="text-gray-700">{{ project.project_manager.full_name|default:"—" }}</dd>
+            </div>
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Dirección</dt><dd class="text-gray-700 text-right">{{ project.address|default:"—" }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Fechas</h2>
+        <dl class="text-sm space-y-1.5">
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Inicio</dt><dd class="text-gray-700">{{ project.start_date|date:"d/m/Y"|default:"—" }}</dd>
+            </div>
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Fin estimado</dt><dd class="text-gray-700">{{ project.estimated_end_date|date:"d/m/Y"|default:"—" }}</dd>
+            </div>
+            <div class="flex justify-between border-b border-gray-50 py-1">
+                <dt class="text-gray-500">Fin real</dt><dd class="text-gray-700">{{ project.actual_end_date|date:"d/m/Y"|default:"—" }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    {% if project.notes %}
+        <div class="md:col-span-2">
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Notas</h2>
+            <p class="text-sm text-gray-700 whitespace-pre-line">{{ project.notes }}</p>
+        </div>
+    {% endif %}
+
+    <div class="md:col-span-2 text-xs text-gray-400 pt-4 border-t border-gray-100">
+        Creada {{ project.created_at|date:"d/m/Y H:i" }} por {{ project.created_by.email|default:"—" }}
+        · Última edición {{ project.updated_at|date:"d/m/Y H:i" }}
+    </div>
+</div>
+{% endblock %}

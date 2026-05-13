@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Obras · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Obras</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            {{ projects|length }} obra{{ projects|pluralize }}
+            {% if show_archived %}(incluyendo archivadas){% else %}activa{{ projects|pluralize }}{% endif %}.
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <a href="?{% if show_archived %}{% else %}archivadas=1{% endif %}"
+           class="text-xs text-brand-mid hover:underline">
+            {% if show_archived %}Ocultar archivadas{% else %}Ver archivadas{% endif %}
+        </a>
+        <a href="{% url 'projects:create' %}"
+           class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+            + Nueva obra
+        </a>
+    </div>
+</header>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Obra</th>
+                <th class="text-left px-3 py-2 font-medium">Sociedad</th>
+                <th class="text-left px-3 py-2 font-medium">Estado</th>
+                <th class="text-left px-3 py-2 font-medium">Inicio</th>
+                <th class="text-left px-3 py-2 font-medium">Responsable</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in projects %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2">
+                        <a href="{% url 'projects:detail' p.pk %}" class="text-brand-mid hover:underline font-medium">
+                            {{ p.name }}
+                        </a>
+                        {% if p.code %}<span class="text-xs text-gray-500 ml-1">· {{ p.code }}</span>{% endif %}
+                        {% if p.is_archived %}<span class="text-xs text-gray-400 ml-1">(archivada)</span>{% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.company.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.status.name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.start_date|date:"d/m/Y"|default:"—" }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.project_manager.full_name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'projects:edit' p.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin obras todavía.
+                        <a href="{% url 'projects:create' %}" class="text-brand-mid hover:underline">Crear la primera</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+    <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        <div class="space-x-2">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
+        </div>
+    </nav>
+{% endif %}
+{% endblock %}
