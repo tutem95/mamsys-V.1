@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}A pagar · Compras · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <a href="{% url 'procurement:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Compras</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">Bandeja "A pagar"</h1>
+        <p class="text-xs text-gray-500 mt-1">Compras con saldo pendiente agrupadas por semana de pago.</p>
+    </div>
+    <div class="text-right">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Saldo total</p>
+        <p class="text-2xl font-semibold text-amber-700 font-mono">{{ grand_balance|floatformat:2 }}</p>
+        <p class="text-xs text-gray-400">facturado total: {{ grand_total|floatformat:2 }} (moneda mixta)</p>
+    </div>
+</header>
+
+{% if groups %}
+    {% for group in groups %}
+        <section class="mb-6">
+            <header class="flex justify-between items-baseline mb-2 border-b border-brand-light pb-1">
+                <h2 class="text-sm font-medium text-gray-700">{{ group.label }}</h2>
+                <span class="text-xs text-gray-500 font-mono">
+                    Saldo {{ group.balance|floatformat:2 }} · Facturado {{ group.total|floatformat:2 }}
+                </span>
+            </header>
+
+            <div class="border border-gray-100 rounded overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-brand-pale text-xs text-gray-700">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-medium">Fecha</th>
+                            <th class="text-left px-3 py-2 font-medium">Comprobante</th>
+                            <th class="text-left px-3 py-2 font-medium">Proveedor</th>
+                            <th class="text-left px-3 py-2 font-medium">Obra</th>
+                            <th class="text-left px-3 py-2 font-medium">Vencim.</th>
+                            <th class="text-right px-3 py-2 font-medium">Total</th>
+                            <th class="text-right px-3 py-2 font-medium">Pagado</th>
+                            <th class="text-right px-3 py-2 font-medium">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in group.items %}
+                            <tr class="border-t border-gray-50 hover:bg-gray-50">
+                                <td class="px-3 py-2 text-gray-700">{{ row.purchase.invoice_date|date:"d/m/Y" }}</td>
+                                <td class="px-3 py-2">
+                                    <a href="{% url 'procurement:detail' row.purchase.pk %}" class="text-brand-mid hover:underline">
+                                        {{ row.purchase.get_document_type_display }} {{ row.purchase.document_number }}
+                                    </a>
+                                </td>
+                                <td class="px-3 py-2 text-gray-700">{{ row.purchase.supplier.name }}</td>
+                                <td class="px-3 py-2 text-gray-700">{{ row.purchase.project.name|default:"—" }}</td>
+                                <td class="px-3 py-2 text-gray-700">{{ row.purchase.due_date|date:"d/m/Y"|default:"—" }}</td>
+                                <td class="px-3 py-2 text-gray-700 text-right font-mono">
+                                    {{ row.purchase.original_currency.symbol }} {{ row.purchase.total_amount|floatformat:2 }}
+                                </td>
+                                <td class="px-3 py-2 text-gray-700 text-right font-mono">{{ row.paid|floatformat:2 }}</td>
+                                <td class="px-3 py-2 text-amber-700 text-right font-mono font-semibold">{{ row.balance|floatformat:2 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endfor %}
+{% else %}
+    <p class="text-sm text-gray-500 border border-gray-100 rounded px-3 py-6 text-center">
+        🎉 Sin compras pendientes de pago.
+    </p>
+{% endif %}
+{% endblock %}

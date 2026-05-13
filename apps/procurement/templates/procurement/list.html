@@ -6,7 +6,11 @@
 <header class="flex justify-between items-baseline mb-4">
     <div>
         <h1 class="text-xl font-semibold text-gray-700">Compras</h1>
-        <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} compra{{ paginator.count|pluralize }} total.</p>
+        <p class="text-xs text-gray-500 mt-1">
+            <a href="{% url 'procurement:to_pay' %}" class="text-brand-mid hover:underline">Bandeja A pagar</a>
+            ·
+            <a href="{% url 'procurement:supplier_balance' %}" class="text-brand-mid hover:underline">Cuenta corriente</a>
+        </p>
     </div>
     <a href="{% url 'procurement:create' %}"
        class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
@@ -14,10 +18,36 @@
     </a>
 </header>
 
-<form method="get" class="flex flex-wrap items-end gap-3 mb-4 text-xs">
+{# KPIs #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Total</p>
+        <p class="text-lg font-semibold text-gray-700 mt-0.5">{{ kpi_total }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">A pagar</p>
+        <p class="text-lg font-semibold text-amber-600 mt-0.5">{{ kpi_to_pay }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Pagadas</p>
+        <p class="text-lg font-semibold text-green-600 mt-0.5">{{ kpi_paid }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Monto total</p>
+        <p class="text-lg font-semibold text-gray-700 mt-0.5 font-mono">{{ kpi_total_amount|floatformat:0 }}</p>
+        <p class="text-xs text-gray-400">moneda mixta — informativo</p>
+    </div>
+</div>
+
+<form method="get" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4 text-xs items-end">
+    <div>
+        <label class="block text-gray-500 mb-1">Buscar</label>
+        <input type="text" name="q" value="{{ current_q }}" placeholder="Nº, proveedor, detalle…"
+               class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
     <div>
         <label class="block text-gray-500 mb-1">Tipo</label>
-        <select name="tipo" class="border border-gray-200 rounded px-2 py-1 text-sm">
+        <select name="tipo" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
             <option value="">Todas</option>
             <option value="obra" {% if current_type == "obra" %}selected{% endif %}>De obra</option>
             <option value="admin" {% if current_type == "admin" %}selected{% endif %}>Administrativas</option>
@@ -26,17 +56,46 @@
     </div>
     <div>
         <label class="block text-gray-500 mb-1">Estado</label>
-        <select name="estado" class="border border-gray-200 rounded px-2 py-1 text-sm">
+        <select name="estado" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
             <option value="">Todos</option>
             {% for value, label in status_choices %}
                 <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
     </div>
-    <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1.5">Filtrar</button>
-    {% if current_type or current_status %}
+    <div>
+        <label class="block text-gray-500 mb-1">Proveedor</label>
+        <select name="proveedor" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for s in suppliers %}<option value="{{ s.pk }}" {% if current_supplier == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Obra</label>
+        <select name="obra" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for p in projects %}<option value="{{ p.pk }}" {% if current_project == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Sociedad</label>
+        <select name="sociedad" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for c in companies %}<option value="{{ c.pk }}" {% if current_company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Desde</label>
+        <input type="date" name="desde" value="{{ current_desde }}" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Hasta</label>
+        <input type="date" name="hasta" value="{{ current_hasta }}" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <div class="col-span-2 md:col-span-4 lg:col-span-8 flex gap-2 justify-end">
         <a href="{% url 'procurement:list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>
-    {% endif %}
+        <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1.5">Filtrar</button>
+    </div>
 </form>
 
 <div class="border border-gray-100 rounded overflow-hidden">
@@ -89,7 +148,7 @@
             {% empty %}
                 <tr>
                     <td colspan="8" class="px-3 py-6 text-center text-xs text-gray-500">
-                        Sin compras cargadas. <a href="{% url 'procurement:create' %}" class="text-brand-mid hover:underline">Crear la primera</a>.
+                        Sin compras con esos filtros.
                     </td>
                 </tr>
             {% endfor %}
@@ -101,8 +160,8 @@
     <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
         <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
         <div class="space-x-2">
-            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if current_type %}&tipo={{ current_type }}{% endif %}{% if current_status %}&estado={{ current_status }}{% endif %}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
-            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if current_type %}&tipo={{ current_type }}{% endif %}{% if current_status %}&estado={{ current_status }}{% endif %}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
+            {% if page_obj.has_previous %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
         </div>
     </nav>
 {% endif %}
