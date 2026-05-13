@@ -9,7 +9,7 @@ django-tenants>=3.7
 
 # Auth & permissions
 django-allauth>=65.0
-django-rules>=3.4
+rules>=3.4
 
 # API
 djangorestframework>=3.15

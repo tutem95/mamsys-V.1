@@ -36,7 +36,7 @@ class OrganizationSignupView(View):
             password=form.cleaned_data["password"],
         )
 
-        login(request, result.user)
+        login(request, result.user, backend="django.contrib.auth.backends.ModelBackend")
         messages.success(request, "¡Listo! Tu organización se creó correctamente.")
 
         # Redirigir al subdominio de la org recién creada.

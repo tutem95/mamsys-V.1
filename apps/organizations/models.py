@@ -14,7 +14,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
+from django.utils.timezone import now as tz_now
 from django_tenants.models import DomainMixin, TenantMixin
 
 
@@ -31,7 +31,7 @@ class Organization(TenantMixin):
 
     is_active = models.BooleanField(default=True)
 
-    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    created_at = models.DateTimeField(default=tz_now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     # django-tenants: crear el schema automáticamente cuando se inserta el registro.
