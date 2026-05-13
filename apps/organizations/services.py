@@ -49,6 +49,15 @@ def signup_organization(
         email_verified=True,
     )
 
+    # Crear el EmailAddress de allauth para que el login funcione.
+    from allauth.account.models import EmailAddress
+    EmailAddress.objects.create(
+        user=user,
+        email=user.email,
+        verified=True,
+        primary=True,
+    )
+
     organization = Organization.objects.create(
         name=organization_name,
         slug=organization_slug,

@@ -46,9 +46,30 @@ class OrganizationSignupView(View):
 
 
 class PublicLandingView(View):
-    """Landing del schema público. Por ahora solo invita al sign-up."""
+    """Landing del schema público.
+
+    Si el visitante está autenticado, mostramos sus organizaciones para que
+    elija a cuál entrar. Si no, ofrecemos sign-up.
+    """
 
     template_name = "organizations/landing.html"
 
     def get(self, request):
-        return render(request, self.template_name)
+        memberships = []
+        if request.user.is_authenticated:
+            base = getattr(settings, "TENANT_BASE_DOMAIN", "localhost")
+            host_port = request.get_host().split(":")
+            port = f":{host_port[1]}" if len(host_port) > 1 else ""
+            scheme = "https" if request.is_secure() else "http"
+            qs = (
+                request.user.memberships.filter(is_active=True)
+                .select_related("organization", "role")
+                .order_by("organization__name")
+            )
+            for m in qs:
+                memberships.append({
+                    "name": m.organization.name,
+                    "role": m.role.name,
+                    "url": f"{scheme}://{m.organization.slug}.{base}{port}/",
+                })
+        return render(request, self.template_name, {"memberships": memberships})

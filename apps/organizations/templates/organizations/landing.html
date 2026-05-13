@@ -4,17 +4,59 @@
 {% block subtitle %}SaaS de gestión para constructoras pyme.{% endblock %}
 
 {% block content %}
-    <div class="space-y-4 text-sm text-gray-700">
-        <p>
-            Esta es la landing pública. Cada organización tiene su propio espacio en
-            <code class="bg-brand-pale px-1 rounded text-xs">subdominio.localhost</code>.
-        </p>
-        <a href="{% url 'organizations:signup' %}"
-           class="block text-center w-full bg-brand-mid hover:bg-brand-light text-white font-medium rounded py-2 transition-colors">
-            Crear una organización
-        </a>
-        <p class="text-xs text-gray-500 text-center">
-            ¿Ya tenés cuenta? Entrá por el subdominio de tu organización.
-        </p>
-    </div>
+    {% if user.is_authenticated %}
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>Hola <span class="font-medium">{{ user.full_name }}</span>.</p>
+
+            {% if memberships %}
+                <p class="text-xs text-gray-500">Elegí en qué organización trabajar:</p>
+                <ul class="space-y-2">
+                    {% for m in memberships %}
+                        <li>
+                            <a href="{{ m.url }}"
+                               class="block border border-brand-light rounded p-3 hover:bg-brand-pale transition-colors">
+                                <div class="flex justify-between items-baseline">
+                                    <span class="font-medium text-gray-700">{{ m.name }}</span>
+                                    <span class="text-xs text-gray-500">{{ m.role }}</span>
+                                </div>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="text-xs text-gray-500 border border-amber-200 bg-amber-50 rounded p-3">
+                    Todavía no perteneces a ninguna organización activa.
+                    Pedile a tu admin que te invite, o crear una nueva.
+                </div>
+            {% endif %}
+
+            <div class="pt-2 border-t border-gray-100 space-y-2">
+                <a href="{% url 'organizations:signup' %}"
+                   class="block text-center w-full bg-brand-mid hover:bg-brand-light text-white font-medium rounded py-2 transition-colors">
+                    Crear una nueva organización
+                </a>
+                <form method="post" action="{% url 'account_logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="block w-full text-center text-xs text-gray-500 hover:text-brand-mid">
+                        Salir
+                    </button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>
+                Cada organización tiene su propio espacio en
+                <code class="bg-brand-pale px-1 rounded text-xs">subdominio.localhost</code>.
+            </p>
+            <a href="{% url 'organizations:signup' %}"
+               class="block text-center w-full bg-brand-mid hover:bg-brand-light text-white font-medium rounded py-2 transition-colors">
+                Crear una organización
+            </a>
+            <a href="{% url 'account_login' %}"
+               class="block text-center w-full border border-brand-light text-brand-mid hover:bg-brand-pale font-medium rounded py-2 transition-colors">
+                Ya tengo cuenta
+            </a>
+        </div>
+    {% endif %}
 {% endblock %}
