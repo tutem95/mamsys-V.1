@@ -70,7 +70,8 @@ TENANT_APPS = [
     "apps.catalog",
     "apps.projects",
     "apps.pricing",
-    # próximas fases: procurement, payroll, ...
+    "apps.procurement",
+    # próximas fases: payroll, task_master, ...
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]

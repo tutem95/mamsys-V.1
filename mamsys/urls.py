@@ -10,6 +10,7 @@ urlpatterns = [
     path("sociedades/", include("apps.companies.urls")),
     path("catalogos/", include("apps.catalog.urls")),
     path("cotizaciones/", include("apps.pricing.urls")),
+    path("compras/", include("apps.procurement.urls")),
     path("obras/", include("apps.projects.urls")),
     path("", include("apps.core.urls")),
     # Apps de negocio se suman aquí a medida que avanzan las fases.

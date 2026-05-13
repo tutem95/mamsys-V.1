@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Compras · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Compras</h1>
+        <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} compra{{ paginator.count|pluralize }} total.</p>
+    </div>
+    <a href="{% url 'procurement:create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nueva compra
+    </a>
+</header>
+
+<form method="get" class="flex flex-wrap items-end gap-3 mb-4 text-xs">
+    <div>
+        <label class="block text-gray-500 mb-1">Tipo</label>
+        <select name="tipo" class="border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            <option value="obra" {% if current_type == "obra" %}selected{% endif %}>De obra</option>
+            <option value="admin" {% if current_type == "admin" %}selected{% endif %}>Administrativas</option>
+            <option value="cadeteria" {% if current_type == "cadeteria" %}selected{% endif %}>Cadetería</option>
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Estado</label>
+        <select name="estado" class="border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1.5">Filtrar</button>
+    {% if current_type or current_status %}
+        <a href="{% url 'procurement:list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>
+    {% endif %}
+</form>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Fecha</th>
+                <th class="text-left px-3 py-2 font-medium">Comprobante</th>
+                <th class="text-left px-3 py-2 font-medium">Proveedor</th>
+                <th class="text-left px-3 py-2 font-medium">Obra</th>
+                <th class="text-left px-3 py-2 font-medium">Rubro</th>
+                <th class="text-right px-3 py-2 font-medium">Total</th>
+                <th class="text-left px-3 py-2 font-medium">Estado</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in purchases %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ p.invoice_date|date:"d/m/Y" }}</td>
+                    <td class="px-3 py-2">
+                        <a href="{% url 'procurement:detail' p.pk %}" class="text-brand-mid hover:underline">
+                            {{ p.get_document_type_display }} {{ p.document_number }}
+                        </a>
+                        {% if p.is_subcontract %}<span class="text-xs text-gray-400 ml-1">SC</span>{% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.supplier.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.project.name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.rubro.name }}</td>
+                    <td class="px-3 py-2 text-gray-700 text-right font-mono">
+                        {{ p.original_currency.symbol }} {{ p.total_amount|floatformat:2 }}
+                    </td>
+                    <td class="px-3 py-2 text-xs">
+                        {% if p.status == "draft" %}
+                            <span class="text-gray-500">{{ p.get_status_display }}</span>
+                        {% elif p.status == "to_pay" %}
+                            <span class="text-amber-600">{{ p.get_status_display }}</span>
+                        {% elif p.status == "paid_partial" %}
+                            <span class="text-brand-mid">{{ p.get_status_display }}</span>
+                        {% elif p.status == "paid" %}
+                            <span class="text-green-600">{{ p.get_status_display }}</span>
+                        {% else %}
+                            <span class="text-gray-400">{{ p.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'procurement:edit' p.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="8" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin compras cargadas. <a href="{% url 'procurement:create' %}" class="text-brand-mid hover:underline">Crear la primera</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+    <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        <div class="space-x-2">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if current_type %}&tipo={{ current_type }}{% endif %}{% if current_status %}&estado={{ current_status }}{% endif %}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if current_type %}&tipo={{ current_type }}{% endif %}{% if current_status %}&estado={{ current_status }}{% endif %}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
+        </div>
+    </nav>
+{% endif %}
+{% endblock %}

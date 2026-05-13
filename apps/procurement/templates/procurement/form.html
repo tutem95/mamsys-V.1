@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if purchase %}Editar compra{% else %}Nueva compra{% endif %} · Mamsys
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl">
+    <header class="mb-6">
+        <a href="{% url 'procurement:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Compras</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">
+            {% if purchase %}Editar compra{% else %}Nueva compra{% endif %}
+        </h1>
+    </header>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-xs">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {# Cabecera #}
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Cabecera</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% for field in form %}
+                    {% if field.name not in "detail main_item_description notes amount_without_tax iva_21 iva_10_5 perc_iibb total_amount payment_method week_to_pay due_date" %}
+                        {% include "procurement/_field.html" with field=field %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                {% include "procurement/_field.html" with field=form.detail %}
+                {% include "procurement/_field.html" with field=form.main_item_description %}
+            </div>
+        </section>
+
+        {# Montos #}
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Montos</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {% include "procurement/_field.html" with field=form.amount_without_tax %}
+                {% include "procurement/_field.html" with field=form.iva_21 %}
+                {% include "procurement/_field.html" with field=form.iva_10_5 %}
+                {% include "procurement/_field.html" with field=form.perc_iibb %}
+                {% include "procurement/_field.html" with field=form.total_amount %}
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Si dejás el Total en 0, lo arma el sistema sumando subtotal + IVAs + IIBB.</p>
+        </section>
+
+        {# Pago #}
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Pago</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% include "procurement/_field.html" with field=form.payment_method %}
+                {% include "procurement/_field.html" with field=form.week_to_pay %}
+                {% include "procurement/_field.html" with field=form.due_date %}
+            </div>
+            <div class="mt-4">
+                {% include "procurement/_field.html" with field=form.notes %}
+            </div>
+        </section>
+
+        {# Items inline #}
+        <section>
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-3">Ítems (opcional)</h2>
+            {{ formset.management_form }}
+            <div class="space-y-2">
+                {% for fset in formset %}
+                    <div class="grid grid-cols-12 gap-2 items-start border border-gray-100 rounded p-2">
+                        {% for hidden in fset.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="col-span-3">{{ fset.material }}{{ fset.material.errors }}</div>
+                        <div class="col-span-3">{{ fset.subcontract }}{{ fset.subcontract.errors }}</div>
+                        <div class="col-span-2">{% render_field fset.quantity placeholder="Cant." %}</div>
+                        <div class="col-span-1">{{ fset.unit }}</div>
+                        <div class="col-span-2">{% render_field fset.unit_price placeholder="Unit." %}</div>
+                        <div class="col-span-1 text-right">
+                            {% if fset.instance.pk %}
+                                <label class="text-xs text-red-600">
+                                    {{ fset.DELETE }} Borrar
+                                </label>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+                Cargá material O subcontrato según la cabecera marque "Es subcontrato".
+                Para agregar más filas guardá y volvé a entrar (HTMX dinámico viene en otra entrega).
+            </p>
+        </section>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
+            <a href="{% if purchase %}{% url 'procurement:detail' purchase.pk %}{% else %}{% url 'procurement:list' %}{% endif %}"
+               class="text-xs text-gray-500 hover:text-brand-mid self-center">Cancelar</a>
+            <button type="submit"
+                    class="bg-brand-mid hover:bg-brand-light text-white font-medium rounded px-4 py-2 transition-colors">
+                Guardar
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

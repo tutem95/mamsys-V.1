@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}{{ purchase.get_document_type_display }} {{ purchase.document_number }} · Compras{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'procurement:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Compras</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">
+                {{ purchase.get_document_type_display }} {{ purchase.document_number }}
+            </h1>
+            <p class="text-xs text-gray-500">
+                {{ purchase.invoice_date|date:"d/m/Y" }} · {{ purchase.supplier.name }}
+                {% if purchase.is_subcontract %}· <span class="text-amber-600">Subcontrato</span>{% endif %}
+            </p>
+        </div>
+        <div class="flex gap-3 items-center">
+            <span class="text-xs px-2 py-1 rounded
+                {% if purchase.status == 'draft' %}bg-gray-100 text-gray-600
+                {% elif purchase.status == 'to_pay' %}bg-amber-50 text-amber-700
+                {% elif purchase.status == 'paid_partial' %}bg-brand-pale text-brand-mid
+                {% elif purchase.status == 'paid' %}bg-green-50 text-green-700
+                {% else %}bg-gray-100 text-gray-400{% endif %}">
+                {{ purchase.get_status_display }}
+            </span>
+            <a href="{% url 'procurement:edit' purchase.pk %}" class="text-sm text-brand-mid hover:underline">Editar</a>
+        </div>
+    </div>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl">
+    <div>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Imputación</h2>
+        <dl class="text-sm space-y-1.5">
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Tipo</dt><dd class="text-gray-700">{{ purchase.get_purchase_type_display }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Sociedad</dt><dd class="text-gray-700">{{ purchase.company.name }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Obra</dt><dd class="text-gray-700">{{ purchase.project.name|default:"—" }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Rubro</dt><dd class="text-gray-700">{{ purchase.rubro.name }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Subrubro</dt><dd class="text-gray-700">{{ purchase.subrubro.name|default:"—" }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Componente</dt><dd class="text-gray-700">{{ purchase.business_component.name|default:"—" }}</dd></div>
+        </dl>
+        {% if purchase.detail %}
+            <p class="text-xs text-gray-700 mt-3">{{ purchase.detail }}</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Montos ({{ purchase.original_currency.code }})</h2>
+        <dl class="text-sm space-y-1.5">
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Sin IVA</dt><dd class="text-gray-700 font-mono">{{ purchase.amount_without_tax|floatformat:2 }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">IVA 21%</dt><dd class="text-gray-700 font-mono">{{ purchase.iva_21|floatformat:2 }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">IVA 10,5%</dt><dd class="text-gray-700 font-mono">{{ purchase.iva_10_5|floatformat:2 }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Perc. IIBB</dt><dd class="text-gray-700 font-mono">{{ purchase.perc_iibb|floatformat:2 }}</dd></div>
+            <div class="flex justify-between border-t border-gray-200 py-1.5 mt-1">
+                <dt class="text-gray-700 font-medium">Total</dt>
+                <dd class="text-gray-700 font-mono font-semibold">{{ purchase.original_currency.symbol }} {{ purchase.total_amount|floatformat:2 }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Pago</h2>
+        <dl class="text-sm space-y-1.5">
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Forma de pago</dt><dd class="text-gray-700">{{ purchase.payment_method|default:"—" }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Semana de pago</dt><dd class="text-gray-700">{{ purchase.week_to_pay|default:"—" }}</dd></div>
+            <div class="flex justify-between border-b border-gray-50 py-1"><dt class="text-gray-500">Vencimiento</dt><dd class="text-gray-700">{{ purchase.due_date|date:"d/m/Y"|default:"—" }}</dd></div>
+        </dl>
+        {% if purchase.notes %}
+            <p class="text-xs text-gray-700 mt-3 whitespace-pre-line">{{ purchase.notes }}</p>
+        {% endif %}
+    </div>
+</div>
+
+{# Ítems #}
+<section class="mt-8 max-w-6xl">
+    <header class="flex justify-between items-baseline mb-2">
+        <h2 class="text-sm font-medium text-gray-700">Ítems ({{ purchase.items.count }})</h2>
+        {% if items_mismatch %}
+            <p class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                ⚠ Suma de ítems ({{ items_total|floatformat:2 }}) no coincide con subtotal sin IVA ({{ purchase.amount_without_tax|floatformat:2 }}).
+            </p>
+        {% endif %}
+    </header>
+    {% if purchase.items.all %}
+        <div class="border border-gray-100 rounded overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-pale text-xs text-gray-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-medium">Ítem</th>
+                        <th class="text-left px-3 py-2 font-medium">Subrubro</th>
+                        <th class="text-right px-3 py-2 font-medium">Cant.</th>
+                        <th class="text-left px-3 py-2 font-medium">Unidad</th>
+                        <th class="text-right px-3 py-2 font-medium">Unit.</th>
+                        <th class="text-right px-3 py-2 font-medium">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in purchase.items.all %}
+                        <tr class="border-t border-gray-50">
+                            <td class="px-3 py-2 text-gray-700">
+                                {{ item.material.name|default:item.subcontract.name|default:"—" }}
+                                {% if item.item_description %}<span class="text-xs text-gray-500 block">{{ item.item_description }}</span>{% endif %}
+                            </td>
+                            <td class="px-3 py-2 text-gray-700">{{ item.subrubro.name|default:"—" }}</td>
+                            <td class="px-3 py-2 text-gray-700 text-right font-mono">{{ item.quantity|floatformat:2 }}</td>
+                            <td class="px-3 py-2 text-gray-700">{{ item.unit.symbol }}</td>
+                            <td class="px-3 py-2 text-gray-700 text-right font-mono">{{ item.unit_price|floatformat:4 }}</td>
+                            <td class="px-3 py-2 text-gray-700 text-right font-mono">{{ item.total|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-200">
+                        <td colspan="5" class="px-3 py-2 text-xs text-gray-500 text-right">Total ítems:</td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold">{{ items_total|floatformat:2 }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-xs text-gray-500 border border-gray-100 rounded px-3 py-4 text-center">
+            Sin ítems. La compra está sólo a nivel cabecera.
+        </p>
+    {% endif %}
+</section>
+
+<div class="text-xs text-gray-400 mt-8 pt-4 border-t border-gray-100">
+    Creada {{ purchase.created_at|date:"d/m/Y H:i" }} por {{ purchase.created_by.email|default:"—" }}
+    · Última edición {{ purchase.updated_at|date:"d/m/Y H:i" }}
+</div>
+{% endblock %}
