@@ -1,0 +1,20 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Mamsys · Bienvenido{% endblock %}
+{% block subtitle %}SaaS de gestión para constructoras pyme.{% endblock %}
+
+{% block content %}
+    <div class="space-y-4 text-sm text-gray-700">
+        <p>
+            Esta es la landing pública. Cada organización tiene su propio espacio en
+            <code class="bg-brand-pale px-1 rounded text-xs">subdominio.localhost</code>.
+        </p>
+        <a href="{% url 'organizations:signup' %}"
+           class="block text-center w-full bg-brand-mid hover:bg-brand-light text-white font-medium rounded py-2 transition-colors">
+            Crear una organización
+        </a>
+        <p class="text-xs text-gray-500 text-center">
+            ¿Ya tenés cuenta? Entrá por el subdominio de tu organización.
+        </p>
+    </div>
+{% endblock %}

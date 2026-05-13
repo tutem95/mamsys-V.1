@@ -1,0 +1,40 @@
+{% extends "auth_base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Crear organización · Mamsys{% endblock %}
+{% block subtitle %}Crear una nueva organización.{% endblock %}
+
+{% block content %}
+<form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-xs">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <fieldset class="space-y-3">
+        <legend class="text-xs uppercase tracking-wider text-gray-500 mb-1">Empresa</legend>
+        {% include "organizations/_field.html" with field=form.organization_name %}
+        {% include "organizations/_field.html" with field=form.organization_slug %}
+        {% include "organizations/_field.html" with field=form.tax_id %}
+    </fieldset>
+
+    <fieldset class="space-y-3">
+        <legend class="text-xs uppercase tracking-wider text-gray-500 mb-1">Primer administrador</legend>
+        <div class="grid grid-cols-2 gap-3">
+            {% include "organizations/_field.html" with field=form.first_name %}
+            {% include "organizations/_field.html" with field=form.last_name %}
+        </div>
+        {% include "organizations/_field.html" with field=form.email %}
+        {% include "organizations/_field.html" with field=form.password %}
+        {% include "organizations/_field.html" with field=form.password_confirm %}
+    </fieldset>
+
+    <button type="submit"
+            class="w-full bg-brand-mid hover:bg-brand-light text-white font-medium rounded py-2 transition-colors">
+        Crear organización
+    </button>
+</form>
+{% endblock %}

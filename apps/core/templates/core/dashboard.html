@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Mamsys{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <header>
+        <h1 class="text-xl font-semibold text-gray-700">Dashboard</h1>
+        <p class="text-xs text-gray-500">Bienvenido a {{ request.tenant.name|default:"Mamsys" }}.</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {% for label in placeholder_cards %}
+            <div class="border border-gray-100 rounded p-4 hover:border-brand-light transition-colors">
+                <p class="text-xs uppercase tracking-wider text-gray-500">{{ label }}</p>
+                <p class="text-2xl font-semibold text-gray-700 mt-1">—</p>
+                <p class="text-xs text-gray-500 mt-1">Disponible en próximas fases.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="border border-brand-light bg-brand-pale rounded p-4 text-xs text-gray-700">
+        <p class="font-medium mb-1">Fase 1 — Base</p>
+        <p>El esqueleto multi-tenant está listo. Las funcionalidades de negocio se construyen siguiendo el roadmap en <code>docs/SPEC.md</code>.</p>
+    </div>
+</div>
+{% endblock %}

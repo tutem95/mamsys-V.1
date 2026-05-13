@@ -1,0 +1,34 @@
+{# Sidebar de navegación. Las entradas se filtrarán por permisos a medida que avancen las fases. #}
+<aside class="w-60 shrink-0 bg-brand-pale border-r border-brand-light flex flex-col">
+    <div class="px-4 py-5 border-b border-brand-light">
+        <a href="/" class="block text-lg font-semibold text-gray-700">Mamsys</a>
+        {% if request.tenant %}
+            <p class="text-xs text-gray-500 mt-0.5">{{ request.tenant.name }}</p>
+        {% endif %}
+    </div>
+
+    <nav class="flex-1 overflow-y-auto py-3 text-[13px]">
+        <ul class="space-y-0.5">
+            {% include "partials/_nav_item.html" with url="#" label="Dashboard" %}
+            {% include "partials/_nav_item.html" with url="#" label="Obras" %}
+            {% include "partials/_nav_item.html" with url="#" label="Compras" %}
+            {% include "partials/_nav_item.html" with url="#" label="Nómina" %}
+            {% include "partials/_nav_item.html" with url="#" label="Maestros" %}
+            {% include "partials/_nav_item.html" with url="#" label="Presupuestos" %}
+            {% include "partials/_nav_item.html" with url="#" label="Tesorería" %}
+            {% include "partials/_nav_item.html" with url="#" label="Catálogos" %}
+            {% include "partials/_nav_item.html" with url="#" label="Reportes" %}
+        </ul>
+
+        <p class="px-4 pt-4 pb-1 text-[10px] uppercase tracking-wider text-gray-500">Configuración</p>
+        <ul class="space-y-0.5">
+            {% include "partials/_nav_item.html" with url="#" label="Usuarios y roles" %}
+            {% include "partials/_nav_item.html" with url="#" label="Mi organización" %}
+            {% include "partials/_nav_item.html" with url="#" label="Mi perfil" %}
+        </ul>
+    </nav>
+
+    <div class="border-t border-brand-light px-4 py-3 text-xs text-gray-500">
+        v0.1 · Fase 1
+    </div>
+</aside>

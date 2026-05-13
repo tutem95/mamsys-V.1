@@ -1,0 +1,35 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mamsys{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { brand: { mid: '#3d85c6', light: '#9fc5e8', pale: '#d0e2f3' } } } },
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="bg-brand-pale min-h-screen flex items-center justify-center text-gray-700 text-sm font-sans">
+    <div class="w-full max-w-md bg-white rounded-lg shadow border border-brand-light p-8">
+        <h1 class="text-xl font-semibold text-gray-700 mb-1">Mamsys</h1>
+        <p class="text-xs text-gray-500 mb-6">{% block subtitle %}{% endblock %}</p>
+
+        {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                    <div class="rounded border px-3 py-2 text-xs
+                        {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700
+                        {% else %}border-brand-light bg-brand-pale text-gray-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

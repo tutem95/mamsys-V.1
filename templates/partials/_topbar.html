@@ -1,0 +1,15 @@
+<header class="h-12 border-b border-gray-100 px-6 flex items-center justify-between bg-white">
+    <div class="text-gray-500">{% block breadcrumbs %}{% endblock %}</div>
+
+    <div class="flex items-center gap-3 text-xs text-gray-500">
+        {% if user.is_authenticated %}
+            <span>{{ user.email }}</span>
+            <form method="post" action="{% url 'account_logout' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-brand-mid hover:underline">Salir</button>
+            </form>
+        {% else %}
+            <a href="{% url 'account_login' %}" class="text-brand-mid hover:underline">Ingresar</a>
+        {% endif %}
+    </div>
+</header>
