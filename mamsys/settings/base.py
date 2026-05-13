@@ -65,6 +65,7 @@ SHARED_APPS = [
 TENANT_APPS = [
     "django.contrib.admin",
     "apps.core",
+    "apps.companies",
     # próximas fases: catalog, projects, procurement, payroll, pricing, ...
 ]
 

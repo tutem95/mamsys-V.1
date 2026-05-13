@@ -19,9 +19,21 @@
         {% endfor %}
     </div>
 
-    <div class="border border-brand-light bg-brand-pale rounded p-4 text-xs text-gray-700">
-        <p class="font-medium mb-1">Fase 1 — Base</p>
-        <p>El esqueleto multi-tenant está listo. Las funcionalidades de negocio se construyen siguiendo el roadmap en <code>docs/SPEC.md</code>.</p>
+    <div class="border border-gray-100 rounded p-4">
+        <div class="flex justify-between items-baseline mb-3">
+            <h2 class="font-medium text-gray-700">Sociedades</h2>
+            <a href="{% url 'companies:create' %}" class="text-xs text-brand-mid hover:underline">+ Nueva</a>
+        </div>
+        <ul class="space-y-1 text-sm">
+            {% for c in companies %}
+                <li class="flex justify-between border-b border-gray-50 py-1.5">
+                    <span class="text-gray-700">{{ c.name }}</span>
+                    <span class="text-xs text-gray-500">{{ c.get_iva_condition_display }}{% if c.tax_id %} · {{ c.tax_id }}{% endif %}</span>
+                </li>
+            {% empty %}
+                <li class="text-xs text-gray-500">Sin sociedades cargadas.</li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
 {% endblock %}

@@ -7,6 +7,7 @@ from django.urls import include, path
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
+    path("sociedades/", include("apps.companies.urls")),
     path("", include("apps.core.urls")),
     # Apps de negocio se suman aquí a medida que avanzan las fases.
 ]
