@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Presupuestos · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Presupuestos</h1>
+        <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} presupuesto{{ paginator.count|pluralize }}.</p>
+    </div>
+    <a href="{% url 'budgets:create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo presupuesto
+    </a>
+</header>
+
+<form method="get" class="flex flex-wrap gap-2 mb-4 text-xs items-end">
+    <div>
+        <label class="block text-gray-500 mb-1">Estado</label>
+        <select name="estado" class="border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Obra</label>
+        <select name="obra" class="border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for p in projects %}<option value="{{ p.pk }}" {% if current_project == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1">Filtrar</button>
+    {% if current_status or current_project %}<a href="{% url 'budgets:list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>{% endif %}
+</form>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Obra</th>
+                <th class="text-left px-3 py-2 font-medium">Versión</th>
+                <th class="text-left px-3 py-2 font-medium">Nombre</th>
+                <th class="text-left px-3 py-2 font-medium">Estado</th>
+                <th class="text-right px-3 py-2 font-medium">Total c/ margen</th>
+                <th class="text-left px-3 py-2 font-medium">Aprobado</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in budgets %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ b.project.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">P{{ b.version }}</td>
+                    <td class="px-3 py-2">
+                        <a href="{% url 'budgets:detail' b.pk %}" class="text-brand-mid hover:underline">{{ b.name|default:"—" }}</a>
+                    </td>
+                    <td class="px-3 py-2 text-xs">
+                        {% if b.status == "draft" %}<span class="text-gray-500">{{ b.get_status_display }}</span>
+                        {% elif b.status == "submitted" %}<span class="text-amber-600">{{ b.get_status_display }}</span>
+                        {% elif b.status == "approved" %}<span class="text-green-600">{{ b.get_status_display }}</span>
+                        {% elif b.status == "rejected" %}<span class="text-red-600">{{ b.get_status_display }}</span>
+                        {% else %}<span class="text-gray-400">{{ b.get_status_display }}</span>{% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-right font-mono">{{ b.currency.symbol }} {{ b.total_with_margin|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ b.approved_at|date:"d/m/Y"|default:"—" }}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'budgets:detail' b.pk %}" class="text-xs text-brand-mid hover:underline">Ver</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="px-3 py-6 text-center text-xs text-gray-500">
+                    Sin presupuestos. <a href="{% url 'budgets:create' %}" class="text-brand-mid hover:underline">Crear el primero</a>.
+                </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

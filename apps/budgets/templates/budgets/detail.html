@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}{{ budget }} · Presupuestos · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'budgets:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Presupuestos</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">
+                {{ budget.project.name }} · P{{ budget.version }}
+            </h1>
+            <p class="text-xs text-gray-500">
+                {{ budget.name|default:"Sin título" }}
+                · Estado <span class="text-gray-700">{{ budget.get_status_display }}</span>
+                · Moneda {{ budget.currency.code }}
+                {% if budget.pricing_date %}· Precios al {{ budget.pricing_date|date:"d/m/Y" }}{% endif %}
+            </p>
+        </div>
+        <div class="flex gap-2 items-center">
+            {% if not budget.is_locked %}
+                <a href="{% url 'budgets:edit' budget.pk %}" class="text-sm text-brand-mid hover:underline">Editar</a>
+                <form method="post" action="{% url 'budgets:submit' budget.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm bg-amber-600 hover:bg-amber-500 text-white rounded px-3 py-1">Presentar</button>
+                </form>
+                <form method="post" action="{% url 'budgets:approve' budget.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm bg-green-600 hover:bg-green-500 text-white rounded px-3 py-1">Aprobar</button>
+                </form>
+            {% elif budget.status == "submitted" %}
+                <form method="post" action="{% url 'budgets:approve' budget.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm bg-green-600 hover:bg-green-500 text-white rounded px-3 py-1">Aprobar</button>
+                </form>
+                <form method="post" action="{% url 'budgets:reject' budget.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm bg-red-600 hover:bg-red-500 text-white rounded px-3 py-1">Rechazar</button>
+                </form>
+            {% endif %}
+            <form method="post" action="{% url 'budgets:clone' budget.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-sm text-brand-mid hover:underline">+ Nueva versión</button>
+            </form>
+        </div>
+    </div>
+</header>
+
+{# Resumen #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Materiales</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ totals.materials|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Mano de obra</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ totals.labor|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Margen ({{ budget.margin_pct }}%)</p>
+        <p class="text-base font-mono text-gray-700 mt-0.5">+{{ totals.margin_amount|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3 bg-brand-pale">
+        <p class="text-xs uppercase tracking-wider text-gray-700">Total c/ margen</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ budget.currency.symbol }} {{ totals.total_with_margin|floatformat:2 }}</p>
+    </div>
+</div>
+
+{% if budget.is_locked %}
+    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-4">
+        🔒 Presupuesto congelado. Los costos quedaron snapshotados al {{ budget.pricing_date|date:"d/m/Y" }}.
+        Para recalcular con precios actualizados, "Nueva versión".
+    </p>
+{% endif %}
+
+<section>
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Ítems</h2>
+    <div class="border border-gray-100 rounded overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Tarea</th>
+                    <th class="text-right px-3 py-2 font-medium">Cant.</th>
+                    <th class="text-left px-3 py-2 font-medium">Unidad</th>
+                    <th class="text-right px-3 py-2 font-medium">Unit.</th>
+                    <th class="text-right px-3 py-2 font-medium">Materiales</th>
+                    <th class="text-right px-3 py-2 font-medium">M. obra</th>
+                    <th class="text-right px-3 py-2 font-medium">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in items_view %}
+                    <tr class="border-t border-gray-50">
+                        <td class="px-3 py-2 text-gray-700">
+                            {{ row.item.task.name }}
+                            {% if row.item.task.code %}<span class="text-xs text-gray-400">· {{ row.item.task.code }}</span>{% endif %}
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono">{{ row.item.quantity|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-xs text-gray-500">{{ row.item.task.output_unit.symbol }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ row.unit_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ row.materials|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ row.labor|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold">{{ row.total_cost|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="px-3 py-6 text-center text-xs text-gray-500">Sin ítems.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="bg-gray-50">
+                <tr class="border-t border-gray-200">
+                    <td colspan="6" class="px-3 py-2 text-right text-xs text-gray-500">Subtotal</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ totals.subtotal|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td colspan="6" class="px-3 py-2 text-right text-xs text-gray-500">Margen ({{ budget.margin_pct }}%)</td>
+                    <td class="px-3 py-2 text-right font-mono">+{{ totals.margin_amount|floatformat:2 }}</td>
+                </tr>
+                <tr class="border-t border-gray-200">
+                    <td colspan="6" class="px-3 py-2 text-right text-sm font-medium">Total c/ margen</td>
+                    <td class="px-3 py-2 text-right font-mono font-semibold">{{ budget.currency.symbol }} {{ totals.total_with_margin|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+
+{% if budget.notes %}
+    <section class="mt-6">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Notas</h2>
+        <p class="text-sm text-gray-700 whitespace-pre-line">{{ budget.notes }}</p>
+    </section>
+{% endif %}
+
+<div class="text-xs text-gray-400 mt-8 pt-4 border-t border-gray-100">
+    Creado {{ budget.created_at|date:"d/m/Y H:i" }} por {{ budget.created_by.email|default:"—" }}
+    · Última edición {{ budget.updated_at|date:"d/m/Y H:i" }}
+    {% if budget.approved_by %}· Aprobado por {{ budget.approved_by.email }} el {{ budget.approved_at|date:"d/m/Y H:i" }}{% endif %}
+</div>
+{% endblock %}
