@@ -12,6 +12,7 @@ urlpatterns = [
     path("cotizaciones/", include("apps.pricing.urls")),
     path("compras/", include("apps.procurement.urls")),
     path("nomina/", include("apps.payroll.urls")),
+    path("maestros/", include("apps.task_master.urls")),
     path("obras/", include("apps.projects.urls")),
     path("", include("apps.core.urls")),
     # Apps de negocio se suman aquí a medida que avanzan las fases.

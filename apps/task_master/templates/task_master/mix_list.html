@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Mezclas · Maestros · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <a href="{% url 'task_master:index' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Maestros</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">Mezclas</h1>
+        <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} mezcla{{ paginator.count|pluralize }}.</p>
+    </div>
+    <a href="{% url 'task_master:mix_create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nueva mezcla
+    </a>
+</header>
+
+<form method="get" class="flex gap-2 mb-4 text-xs">
+    <input type="text" name="q" value="{{ current_q }}" placeholder="Buscar por nombre o código"
+           class="border border-gray-200 rounded px-2 py-1 text-sm flex-1 max-w-md">
+    <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1">Filtrar</button>
+    {% if current_q %}<a href="{% url 'task_master:mix_list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>{% endif %}
+</form>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Nombre</th>
+                <th class="text-left px-3 py-2 font-medium">Código</th>
+                <th class="text-left px-3 py-2 font-medium">Unidad</th>
+                <th class="text-left px-3 py-2 font-medium">Versión</th>
+                <th class="text-left px-3 py-2 font-medium">Activa</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in mixes %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2">
+                        <a href="{% url 'task_master:mix_detail' m.pk %}" class="text-brand-mid hover:underline">{{ m.name }}</a>
+                    </td>
+                    <td class="px-3 py-2 text-gray-700">{{ m.code|default:"—" }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ m.output_unit.symbol }}</td>
+                    <td class="px-3 py-2 text-gray-700">v{{ m.version }}</td>
+                    <td class="px-3 py-2">{% if m.active %}<span class="text-green-500">✓</span>{% else %}—{% endif %}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'task_master:mix_edit' m.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="px-3 py-6 text-center text-xs text-gray-500">
+                    Sin mezclas. <a href="{% url 'task_master:mix_create' %}" class="text-brand-mid hover:underline">Crear la primera</a>.
+                </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

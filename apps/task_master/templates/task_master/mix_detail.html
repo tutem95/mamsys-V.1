@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ mix.name }} · Mezclas · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'task_master:mix_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Mezclas</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">{{ mix.name }}</h1>
+            <p class="text-xs text-gray-500">
+                {% if mix.code %}{{ mix.code }} · {% endif %}
+                Unidad de salida: {{ mix.output_unit.symbol }}
+                · v{{ mix.version }}
+                {% if not mix.active %}· <span class="text-amber-600">inactiva</span>{% endif %}
+            </p>
+        </div>
+        <a href="{% url 'task_master:mix_edit' mix.pk %}" class="text-sm text-brand-mid hover:underline">Editar</a>
+    </div>
+</header>
+
+{% if mix.description %}
+    <p class="text-sm text-gray-700 mb-4">{{ mix.description }}</p>
+{% endif %}
+
+<h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Receta y costo en vivo</h2>
+{% include "task_master/_breakdown.html" with breakdown=breakdown %}
+
+{% if breakdown.sub_breakdowns %}
+    <section class="mt-6">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Sub-mezclas usadas</h2>
+        {% for pk, sub in breakdown.sub_breakdowns.items %}
+            <details class="border border-gray-100 rounded p-3 mb-2">
+                <summary class="cursor-pointer text-sm">
+                    <span class="font-medium text-gray-700">{{ sub.item_label }}</span>
+                    <span class="text-xs text-gray-500 ml-2">{{ sub.total|floatformat:2 }} {{ sub.currency_code }} / {{ sub.output_unit_symbol }}</span>
+                </summary>
+                <div class="mt-3">{% include "task_master/_breakdown.html" with breakdown=sub %}</div>
+            </details>
+        {% endfor %}
+    </section>
+{% endif %}
+{% endblock %}

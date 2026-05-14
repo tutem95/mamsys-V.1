@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Maestros · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <h1 class="text-xl font-semibold text-gray-700">Maestros</h1>
+    <p class="text-xs text-gray-500 mt-1">Tareas y mezclas que alimentan presupuestos y seguimiento.</p>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="{% url 'task_master:task_list' %}"
+       class="block border border-gray-100 rounded p-4 hover:border-brand-light hover:bg-brand-pale transition-colors">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Tareas</p>
+        <p class="text-2xl font-semibold text-gray-700 mt-1">{{ tasks_count }}</p>
+        <p class="text-xs text-brand-mid mt-2">Ver →</p>
+    </a>
+    <a href="{% url 'task_master:mix_list' %}"
+       class="block border border-gray-100 rounded p-4 hover:border-brand-light hover:bg-brand-pale transition-colors">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Mezclas</p>
+        <p class="text-2xl font-semibold text-gray-700 mt-1">{{ mixes_count }}</p>
+        <p class="text-xs text-brand-mid mt-2">Ver →</p>
+    </a>
+</div>
+
+<p class="text-xs text-gray-500 mt-6">
+    Las tareas pueden referenciar otras tareas o mezclas (recursivas). Los costos se calculan al vuelo
+    usando los precios de catálogo y el último jornal cargado por puesto.
+</p>
+{% endblock %}
