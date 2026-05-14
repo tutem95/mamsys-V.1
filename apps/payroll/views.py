@@ -13,18 +13,24 @@ from .forms import (
     EmployeeBankingForm,
     EmployeeForm,
     EmployeePersonalDataForm,
+    PayrollAllocationFormSet,
     PayrollEntryForm,
+    PayrollExtraordinaryFormSet,
     PayrollPeriodForm,
     PositionPlusFormSet,
+    SocialChargesPaymentForm,
 )
 from .models import (
     Employee,
     EmployeeBanking,
     EmployeePersonalData,
+    PayrollAllocation,
     PayrollEntry,
     PayrollPeriod,
+    SocialChargesPayment,
     pre_generate_entries_for_period,
 )
+from .services import SocialChargesProrateService
 
 
 @method_decorator(login_required, name="dispatch")
@@ -303,4 +309,56 @@ def entry_edit(request, pk: int):
         "extras_set": extras_set,
         "alloc_set": alloc_set,
         "entry": entry,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Carga social (Turno D)
+# ---------------------------------------------------------------------------
+
+@method_decorator(login_required, name="dispatch")
+class SocialChargesPaymentListView(ListView):
+    model = SocialChargesPayment
+    template_name = "payroll/social_charges_list.html"
+    paginate_by = 50
+    context_object_name = "payments"
+
+    def get_queryset(self):
+        return super().get_queryset().select_related("company", "currency")
+
+
+@login_required
+def social_charges_create(request):
+    if request.method == "POST":
+        form = SocialChargesPaymentForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                payment = form.save(commit=False)
+                payment.created_by = request.user
+                payment.save()
+                # El signal post_save dispara el prorrateo. Lo corremos
+                # explícitamente acá también para capturar el resultado y
+                # mostrarlo en el detail.
+                result = SocialChargesProrateService.prorate(payment)
+            messages.success(
+                request,
+                f"Pago registrado. {result.allocations_updated} imputación(es) prorrateadas.",
+            )
+            return redirect("payroll:social_charges_detail", pk=payment.pk)
+    else:
+        form = SocialChargesPaymentForm()
+    return render(request, "payroll/social_charges_form.html", {"form": form, "payment": None})
+
+
+@login_required
+def social_charges_detail(request, pk: int):
+    payment = get_object_or_404(
+        SocialChargesPayment.objects.select_related("company", "currency"), pk=pk,
+    )
+    # Re-correr el cálculo para mostrar resumen actualizado (no escribe nada
+    # nuevo en DB si los datos no cambiaron — es idempotente).
+    result = SocialChargesProrateService.prorate(payment)
+    return render(request, "payroll/social_charges_detail.html", {
+        "payment": payment,
+        "result": result,
     })

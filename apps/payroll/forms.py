@@ -15,6 +15,7 @@ from .models import (
     PayrollExtraordinary,
     PayrollPeriod,
     PositionPlus,
+    SocialChargesPayment,
 )
 
 
@@ -191,3 +192,23 @@ PayrollExtraordinaryFormSet = inlineformset_factory(
     form=PayrollExtraordinaryForm,
     extra=2, can_delete=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# Carga social (Turno D)
+# ---------------------------------------------------------------------------
+
+
+class SocialChargesPaymentForm(forms.ModelForm):
+    class Meta:
+        model = SocialChargesPayment
+        fields = (
+            "company",
+            "period_month", "period_year",
+            "total_amount", "currency",
+            "payment_date", "reference", "notes",
+        )
+        widgets = {
+            "payment_date": forms.DateInput(attrs={"type": "date"}),
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }

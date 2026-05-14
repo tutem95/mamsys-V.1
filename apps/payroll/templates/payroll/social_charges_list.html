@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Carga Social · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <a href="{% url 'payroll:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Empleados</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">Pagos de Carga Social</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            {{ paginator.count }} pago{{ paginator.count|pluralize }}.
+        </p>
+    </div>
+    <a href="{% url 'payroll:social_charges_create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo pago CS
+    </a>
+</header>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Período</th>
+                <th class="text-left px-3 py-2 font-medium">Sociedad</th>
+                <th class="text-left px-3 py-2 font-medium">Pago</th>
+                <th class="text-right px-3 py-2 font-medium">Monto</th>
+                <th class="text-left px-3 py-2 font-medium">Ref.</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ p.period_month|stringformat:"02d" }}/{{ p.period_year }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.company.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ p.payment_date|date:"d/m/Y" }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ p.currency.symbol }} {{ p.total_amount|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ p.reference|default:"—" }}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'payroll:social_charges_detail' p.pk %}" class="text-xs text-brand-mid hover:underline">Ver</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin pagos cargados. <a href="{% url 'payroll:social_charges_create' %}" class="text-brand-mid hover:underline">Cargar el primero</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

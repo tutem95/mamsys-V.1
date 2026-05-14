@@ -9,6 +9,7 @@
         <p class="text-xs text-gray-500 mt-1">
             {{ paginator.count }} empleado{{ paginator.count|pluralize }}
             · <a href="{% url 'payroll:period_list' %}" class="text-brand-mid hover:underline">Quincenas</a>
+            · <a href="{% url 'payroll:social_charges_list' %}" class="text-brand-mid hover:underline">Carga Social</a>
         </p>
     </div>
     <a href="{% url 'payroll:create' %}"

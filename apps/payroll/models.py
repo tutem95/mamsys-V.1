@@ -668,6 +668,47 @@ class PayrollExtraordinary(TimestampedModel):
         return -self.amount
 
 
+class SocialChargesPayment(TimestampedModel):
+    """Pago de Carga Social (CS) de una sociedad en un mes.
+
+    Al guardarse, un servicio prorratea el `total_amount` entre todos los
+    PayrollEntry de la sociedad en ese mes en base a su `gross`. Cada
+    PayrollAllocation recibe la parte que le toca según su `pct` y queda
+    marcada como `social_charges_status='real'`.
+    """
+
+    company = models.ForeignKey(
+        "companies.Company", on_delete=models.PROTECT,
+        related_name="social_charges_payments",
+    )
+    period_month = models.PositiveSmallIntegerField()
+    period_year = models.PositiveSmallIntegerField()
+
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    currency = models.ForeignKey(
+        "currencies.Currency", on_delete=models.PROTECT,
+        related_name="social_charges_payments",
+    )
+
+    payment_date = models.DateField()
+    reference = models.CharField("Nº comprobante", max_length=80, blank=True)
+    notes = models.TextField(blank=True)
+
+    # TODO(treasury): Fase 10 — al confirmar este pago, crear TreasuryEntry
+    # de tipo expense con category='social_charges_payment'.
+
+    class Meta:
+        verbose_name = "Pago de Carga Social"
+        verbose_name_plural = "Pagos de Carga Social"
+        ordering = ("-period_year", "-period_month", "-payment_date")
+        indexes = [
+            models.Index(fields=["company", "period_year", "period_month"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"CS {self.company.name} · {self.period_month:02d}/{self.period_year}"
+
+
 def pre_generate_entries_for_period(period: PayrollPeriod, default_currency=None) -> list[PayrollEntry]:
     """Crea PayrollEntry stubs para cada empleado activo de la sociedad.
 

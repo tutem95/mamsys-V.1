@@ -9,13 +9,20 @@ from __future__ import annotations
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .models import PayrollAllocation, PayrollExtraordinary
+from .models import PayrollAllocation, PayrollExtraordinary, SocialChargesPayment
+from .services import SocialChargesProrateService
 
 
 @receiver(post_save, sender=PayrollExtraordinary)
 @receiver(post_delete, sender=PayrollExtraordinary)
 def recompute_entry_on_extraordinary_change(sender, instance: PayrollExtraordinary, **kwargs) -> None:
     instance.payroll_entry.save()
+
+
+@receiver(post_save, sender=SocialChargesPayment)
+def prorate_on_payment_save(sender, instance: SocialChargesPayment, created: bool, **kwargs) -> None:
+    """Dispara el prorrateo en cada save (alta o edición de monto)."""
+    SocialChargesProrateService.prorate(instance)
 
 
 @receiver(post_save, sender=PayrollAllocation)

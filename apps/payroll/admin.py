@@ -10,6 +10,7 @@ from .models import (
     PayrollExtraordinary,
     PayrollPeriod,
     PositionPlus,
+    SocialChargesPayment,
 )
 
 
@@ -129,3 +130,12 @@ class PayrollExtraordinaryAdmin(admin.ModelAdmin):
     list_display = ("payroll_entry", "concept", "amount", "quantity")
     list_filter = ("concept__type",)
     autocomplete_fields = ("payroll_entry", "concept")
+
+
+@admin.register(SocialChargesPayment)
+class SocialChargesPaymentAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "company", "period_month", "period_year", "total_amount", "payment_date")
+    list_filter = ("company", "period_year")
+    search_fields = ("reference",)
+    date_hierarchy = "payment_date"
+    autocomplete_fields = ("company",)

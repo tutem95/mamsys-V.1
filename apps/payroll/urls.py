@@ -17,4 +17,9 @@ urlpatterns = [
     path("quincenas/<int:pk>/editar/", views.period_edit, name="period_edit"),
     path("quincenas/<int:pk>/regenerar/", views.period_regenerate_entries, name="period_regenerate"),
     path("quincenas/entradas/<int:pk>/", views.entry_edit, name="entry_edit"),
+
+    # Carga social
+    path("carga-social/", views.SocialChargesPaymentListView.as_view(), name="social_charges_list"),
+    path("carga-social/nueva/", views.social_charges_create, name="social_charges_create"),
+    path("carga-social/<int:pk>/", views.social_charges_detail, name="social_charges_detail"),
 ]

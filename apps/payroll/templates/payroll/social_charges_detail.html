@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Pago CS {{ payment.period_month }}/{{ payment.period_year }} · {{ payment.company.name }}{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'payroll:social_charges_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Pagos de CS</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">
+                Carga Social {{ payment.period_month|stringformat:"02d" }}/{{ payment.period_year }}
+            </h1>
+            <p class="text-xs text-gray-500">
+                {{ payment.company.name }} · Pago {{ payment.payment_date|date:"d/m/Y" }}
+                {% if payment.reference %}· Ref {{ payment.reference }}{% endif %}
+            </p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Monto total</p>
+            <p class="text-2xl font-semibold text-gray-700 font-mono">{{ payment.currency.symbol }} {{ payment.total_amount|floatformat:2 }}</p>
+        </div>
+    </div>
+</header>
+
+{# Resumen #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Bruto total mes</p>
+        <p class="text-base font-semibold text-gray-700 font-mono mt-0.5">{{ result.total_gross|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Empleados</p>
+        <p class="text-base font-semibold text-gray-700 mt-0.5">{{ result.lines|length }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Imputaciones actualizadas</p>
+        <p class="text-base font-semibold text-green-700 mt-0.5">{{ result.allocations_updated }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Empleados sin imputar</p>
+        <p class="text-base font-semibold text-amber-600 mt-0.5">{{ result.entries_without_allocations }}</p>
+    </div>
+</div>
+
+{% if result.entries_without_allocations %}
+    <div class="rounded border border-amber-200 bg-amber-50 text-amber-700 px-3 py-2 text-xs mb-4">
+        ⚠ {{ result.entries_without_allocations }} empleado{{ result.entries_without_allocations|pluralize:"s" }} sin imputación a obras.
+        Su CS quedó calculado pero sin asignar a un proyecto. Editá sus liquidaciones para imputarlos.
+    </div>
+{% endif %}
+
+<section>
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Distribución por empleado</h2>
+    <div class="border border-gray-100 rounded overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Empleado</th>
+                    <th class="text-right px-3 py-2 font-medium">Bruto mes</th>
+                    <th class="text-right px-3 py-2 font-medium">% del total</th>
+                    <th class="text-right px-3 py-2 font-medium">CS asignado</th>
+                    <th class="text-right px-3 py-2 font-medium">Imputaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in result.lines %}
+                    <tr class="border-t border-gray-50">
+                        <td class="px-3 py-2 text-gray-700">{{ line.employee_name }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ line.gross|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs text-gray-500">{{ line.pct_of_total|floatformat:2 }}%</td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold">{{ line.cs_assigned|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right">
+                            {% if line.allocations_count == 0 %}
+                                <span class="text-xs text-amber-600">⚠ sin imputar</span>
+                            {% else %}
+                                <span class="text-xs text-gray-500">{{ line.allocations_count }} obra{{ line.allocations_count|pluralize }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-3 py-6 text-center text-xs text-gray-500">
+                            No hay quincenas para {{ payment.period_month|stringformat:"02d" }}/{{ payment.period_year }} en {{ payment.company.name }}.
+                            Cargá las quincenas del mes antes de registrar el pago.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if payment.notes %}
+    <section class="mt-6">
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Notas</h2>
+        <p class="text-sm text-gray-700 whitespace-pre-line">{{ payment.notes }}</p>
+    </section>
+{% endif %}
+{% endblock %}
