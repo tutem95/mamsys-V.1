@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Seguimiento · {{ project.name }} · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'projects:detail' project.pk %}" class="text-xs text-gray-500 hover:text-brand-mid">← {{ project.name }}</a>
+    <div class="flex justify-between items-baseline mt-1">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-700">Seguimiento · {{ project.name }}</h1>
+            <p class="text-xs text-gray-500 mt-1">
+                {% if last %}Último snapshot: {{ last.snapshot_date|date:"d/m/Y" }}.
+                {% else %}Sin snapshots todavía.{% endif %}
+            </p>
+        </div>
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="snapshot">
+            <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5">
+                📸 Generar snapshot hoy
+            </button>
+        </form>
+    </div>
+</header>
+
+{% if last %}
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="border border-gray-100 rounded p-3 bg-brand-pale">
+            <p class="text-xs uppercase tracking-wider text-gray-700">Total acumulado</p>
+            <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ last.currency.symbol }} {{ last.total_cost|floatformat:2 }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Materiales</p>
+            <p class="text-base font-mono text-gray-700 mt-0.5">{{ last.total_materials_cost|floatformat:2 }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Mano de obra</p>
+            <p class="text-base font-mono text-gray-700 mt-0.5">{{ last.total_labor_internal_cost|floatformat:2 }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Subcontratos</p>
+            <p class="text-base font-mono text-gray-700 mt-0.5">{{ last.total_labor_subcontract_cost|floatformat:2 }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">CS (real / est.)</p>
+            <p class="text-base font-mono text-gray-700 mt-0.5">
+                <span class="text-green-700">{{ last.total_social_charges_real|floatformat:0 }}</span>
+                / <span class="text-amber-600">{{ last.total_social_charges_estimated|floatformat:0 }}</span>
+            </p>
+        </div>
+    </div>
+{% endif %}
+
+<section class="mb-6">
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Tareas (planificado vs real)</h2>
+    <div class="border border-gray-100 rounded overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Tarea</th>
+                    <th class="text-right px-3 py-2 font-medium">Plan. cant.</th>
+                    <th class="text-right px-3 py-2 font-medium">Real cant.</th>
+                    <th class="text-right px-3 py-2 font-medium">Plan. costo</th>
+                    <th class="text-right px-3 py-2 font-medium">Real costo</th>
+                    <th class="text-right px-3 py-2 font-medium">Varianza</th>
+                    <th class="text-left px-3 py-2 font-medium">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for te in executions %}
+                    <tr class="border-t border-gray-50 hover:bg-gray-50">
+                        <td class="px-3 py-2 text-gray-700">{{ te.task.name }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ te.planned_quantity|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ te.actual_quantity|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ te.planned_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ te.actual_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs
+                            {% if te.variance_pct > 5 %}text-red-600
+                            {% elif te.variance_pct < -5 %}text-green-600
+                            {% else %}text-gray-500{% endif %}">
+                            {{ te.variance_pct|floatformat:1 }}%
+                        </td>
+                        <td class="px-3 py-2 text-xs">{{ te.get_status_display }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="px-3 py-6 text-center text-xs text-gray-500">
+                        Sin ejecuciones de tarea. Generá un snapshot para calcular.
+                    </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if snapshots %}
+<section>
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Historial de snapshots</h2>
+    <div class="border border-gray-100 rounded overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Fecha</th>
+                    <th class="text-right px-3 py-2 font-medium">Materiales</th>
+                    <th class="text-right px-3 py-2 font-medium">M. obra</th>
+                    <th class="text-right px-3 py-2 font-medium">Subcontratos</th>
+                    <th class="text-right px-3 py-2 font-medium">CS total</th>
+                    <th class="text-right px-3 py-2 font-medium">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in snapshots %}
+                    <tr class="border-t border-gray-50">
+                        <td class="px-3 py-2 text-gray-700">{{ s.snapshot_date|date:"d/m/Y" }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ s.total_materials_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ s.total_labor_internal_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ s.total_labor_subcontract_cost|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ s.total_social_charges_real|add:s.total_social_charges_estimated|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono font-semibold">{{ s.total_cost|floatformat:2 }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
