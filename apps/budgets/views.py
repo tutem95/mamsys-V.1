@@ -177,3 +177,52 @@ def budget_clone(request, pk: int):
     new_budget = BudgetApprovalService.clone_as_new_version(budget, request.user)
     messages.success(request, f"Creada P{new_budget.version} como borrador.")
     return redirect("budgets:detail", pk=new_budget.pk)
+
+
+@login_required
+def budget_pdf(request, pk: int):
+    """PDF imprimible del presupuesto (con o sin snapshot)."""
+    from decimal import Decimal
+
+    from django.utils.timezone import localdate
+
+    from apps.core.pdf import render_pdf
+
+    budget = get_object_or_404(
+        Budget.objects.select_related(
+            "project", "project__company", "currency", "exchange_rate_type",
+        ).prefetch_related("items__task__output_unit"),
+        pk=pk,
+    )
+    totals = BudgetCalculatorService.compute(budget)
+
+    items_view = []
+    if budget.is_locked:
+        for item in budget.items.all():
+            items_view.append({
+                "item": item,
+                "unit_cost": item.unit_cost,
+                "total_cost": item.total_cost,
+            })
+    else:
+        from apps.task_master.services import TaskCostCalculator
+        for item in budget.items.all():
+            br = TaskCostCalculator.calculate(
+                item.task, currency=budget.currency,
+                date=budget.pricing_date or localdate(),
+                rate_type=budget.exchange_rate_type,
+            )
+            qty = item.quantity or Decimal("0")
+            items_view.append({
+                "item": item,
+                "unit_cost": br.total,
+                "total_cost": br.total * qty,
+            })
+
+    filename = f"presupuesto-{budget.project.name.replace(' ', '_')}-P{budget.version}.pdf"
+    return render_pdf(request, "budgets/pdf/budget.html", {
+        "budget": budget,
+        "totals": totals,
+        "items_view": items_view,
+        "today": localdate(),
+    }, filename)

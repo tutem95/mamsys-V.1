@@ -42,6 +42,7 @@
                 {% csrf_token %}
                 <button type="submit" class="text-sm text-brand-mid hover:underline">+ Nueva versión</button>
             </form>
+            <a href="{% url 'budgets:pdf' budget.pk %}" target="_blank" class="text-sm text-brand-mid hover:underline">📄 PDF</a>
         </div>
     </div>
 </header>

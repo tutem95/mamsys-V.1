@@ -16,6 +16,7 @@ urlpatterns = [
     path("quincenas/<int:pk>/", views.period_detail, name="period_detail"),
     path("quincenas/<int:pk>/editar/", views.period_edit, name="period_edit"),
     path("quincenas/<int:pk>/regenerar/", views.period_regenerate_entries, name="period_regenerate"),
+    path("quincenas/<int:pk>/talonarios.pdf", views.period_talonarios_pdf, name="period_talonarios_pdf"),
     path("quincenas/entradas/<int:pk>/", views.entry_edit, name="entry_edit"),
 
     # Carga social

@@ -21,6 +21,7 @@
                 {% csrf_token %}
                 <button type="submit" class="text-xs text-brand-mid hover:underline">↻ Regenerar entradas faltantes</button>
             </form>
+            <a href="{% url 'payroll:period_talonarios_pdf' period.pk %}" target="_blank" class="text-sm text-brand-mid hover:underline">📄 Talonarios PDF</a>
             <a href="{% url 'payroll:period_edit' period.pk %}" class="text-sm text-brand-mid hover:underline">Editar quincena</a>
         </div>
     </div>

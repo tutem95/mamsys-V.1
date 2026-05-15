@@ -276,6 +276,36 @@ def period_regenerate_entries(request, pk: int):
 
 
 @login_required
+def period_talonarios_pdf(request, pk: int):
+    """Recibos operativos por empleado de una quincena (uno por página)."""
+    from django.utils.timezone import localdate
+
+    from apps.core.pdf import render_pdf
+
+    period = get_object_or_404(
+        PayrollPeriod.objects.select_related("company"), pk=pk,
+    )
+    entries = (
+        period.entries
+        .select_related(
+            "employee", "employee__personal_data", "currency",
+        )
+        .prefetch_related("extraordinaries__concept")
+        .order_by(
+            "employee__personal_data__last_name",
+            "employee__personal_data__first_name",
+            "employee_id",
+        )
+    )
+    filename = f"talonarios-{period.year}-{period.month:02d}-P{period.period_number}.pdf"
+    return render_pdf(request, "payroll/pdf/talonarios.html", {
+        "period": period,
+        "entries": entries,
+        "today": localdate(),
+    }, filename)
+
+
+@login_required
 def entry_edit(request, pk: int):
     entry = get_object_or_404(
         PayrollEntry.objects.select_related("employee__personal_data", "payroll_period"),

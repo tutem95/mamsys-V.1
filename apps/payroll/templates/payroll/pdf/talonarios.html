@@ -1,0 +1,125 @@
+{% extends "pdf/base.html" %}
+
+{% block title %}Talonarios · {{ period }}{% endblock %}
+
+{% block content %}
+{% for entry in entries %}
+    <div {% if not forloop.last %}class="pagebreak"{% endif %}>
+        <header class="header">
+            <div>
+                <h1>Recibo operativo</h1>
+                <p class="small">
+                    {{ period.period_number }}ª quincena de {{ period.month|stringformat:"02d" }}/{{ period.year }}
+                    · {{ period.start_date|date:"d/m/Y" }} → {{ period.end_date|date:"d/m/Y" }}
+                </p>
+            </div>
+            <div class="right small">
+                <p><strong>{{ period.company.name }}</strong></p>
+                <p>Emitido: {{ today|date:"d/m/Y" }}</p>
+            </div>
+        </header>
+
+        <h2>Empleado</h2>
+        <div class="kvs">
+            <div><span class="label">Nombre:</span> <span class="value">{{ entry.employee.full_name }}</span></div>
+            <div><span class="label">ID interno:</span> {{ entry.employee.internal_id|default:"—" }}</div>
+            <div><span class="label">Puesto:</span> {{ entry.position_snapshot|default:"—" }}</div>
+            <div><span class="label">Equipo:</span> {{ entry.team_snapshot|default:"—" }}</div>
+            <div><span class="label">Jefe:</span> {{ entry.boss_snapshot|default:"—" }}</div>
+            <div><span class="label">Estado:</span> {{ entry.suspended|yesno:"Suspendido,Activo" }}</div>
+        </div>
+
+        <h2>Liquidación</h2>
+        <table>
+            <thead>
+                <tr><th>Concepto</th><th class="num">Cantidad</th><th class="num">Valor</th><th class="num">Importe</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Días trabajados</td>
+                    <td class="num">{{ entry.days_worked|floatformat:2 }}</td>
+                    <td class="num">{{ entry.value_jornal|floatformat:2 }}</td>
+                    <td class="num">{{ entry.attendance_subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if entry.overtime_hours %}
+                <tr>
+                    <td>Horas extra (+{{ period.plus_overtime_pct }}%)</td>
+                    <td class="num">{{ entry.overtime_hours|floatformat:2 }}</td>
+                    <td class="num">—</td>
+                    <td class="num">{{ entry.overtime_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if entry.late_hours_amount %}
+                <tr>
+                    <td class="muted">Hs. tarde (descuento)</td>
+                    <td class="num">{{ entry.late_hours|floatformat:2 }}</td>
+                    <td class="num">—</td>
+                    <td class="num">-{{ entry.late_hours_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if entry.vacations_amount %}
+                <tr>
+                    <td class="muted">Vacaciones (descuento)</td>
+                    <td class="num">{{ entry.vacations|floatformat:2 }}</td>
+                    <td class="num">—</td>
+                    <td class="num">-{{ entry.vacations_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% for x in entry.extraordinaries.all %}
+                <tr>
+                    <td>{{ x.concept.name }} ({{ x.concept.get_type_display }})</td>
+                    <td class="num">{{ x.quantity|default:"—" }}</td>
+                    <td class="num">—</td>
+                    <td class="num">{% if x.concept.type == "income" %}+{% else %}-{% endif %}{{ x.amount|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr><td colspan="3" class="num small">Bruto</td><td class="num">{{ entry.gross|floatformat:2 }}</td></tr>
+                {% if entry.presentismo_subtotal %}
+                    <tr><td colspan="3" class="num small">Presentismo ({{ period.plus_presentismo_pct }}%)</td><td class="num">+{{ entry.presentismo_subtotal|floatformat:2 }}</td></tr>
+                {% endif %}
+                <tr class="totals"><td colspan="3" class="num">Neto a cobrar</td><td class="num">{{ entry.net|floatformat:2 }}</td></tr>
+            </tfoot>
+        </table>
+
+        <h3>Forma de pago</h3>
+        <table>
+            <thead>
+                <tr><th>Concepto</th><th class="num">Monto</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Banco</td><td class="num">{{ entry.bank_amount|floatformat:2 }}</td></tr>
+                <tr><td>Efectivo</td><td class="num">{{ entry.cash_amount|floatformat:2 }}</td></tr>
+            </tbody>
+        </table>
+
+        {% if entry.cash_amount %}
+        <h3>Detalle de billetes (efectivo)</h3>
+        <table>
+            <thead><tr><th>Denominación</th><th class="num">Cant.</th><th class="num">Subtotal</th></tr></thead>
+            <tbody>
+                {% if entry.bills_1000 %}<tr><td>$ 1.000</td><td class="num">{{ entry.bills_1000 }}</td><td class="num">{{ entry.bills_1000|floatformat:0 }}000</td></tr>{% endif %}
+                {% if entry.bills_500 %}<tr><td>$ 500</td><td class="num">{{ entry.bills_500 }}</td><td class="num">{{ entry.bills_500|floatformat:0 }}00</td></tr>{% endif %}
+                {% if entry.bills_200 %}<tr><td>$ 200</td><td class="num">{{ entry.bills_200 }}</td><td class="num">{{ entry.bills_200|floatformat:0 }}00</td></tr>{% endif %}
+                {% if entry.bills_100 %}<tr><td>$ 100</td><td class="num">{{ entry.bills_100 }}</td><td class="num">{{ entry.bills_100|floatformat:0 }}00</td></tr>{% endif %}
+                {% if entry.bills_50 %}<tr><td>$ 50</td><td class="num">{{ entry.bills_50 }}</td><td class="num">{{ entry.bills_50|floatformat:0 }}0</td></tr>{% endif %}
+                {% if entry.bills_20 %}<tr><td>$ 20</td><td class="num">{{ entry.bills_20 }}</td><td class="num">{{ entry.bills_20|floatformat:0 }}0</td></tr>{% endif %}
+                {% if entry.bills_10 %}<tr><td>$ 10</td><td class="num">{{ entry.bills_10 }}</td><td class="num">{{ entry.bills_10|floatformat:0 }}</td></tr>{% endif %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if entry.receipt_observations %}
+            <p class="small"><strong>Observaciones:</strong> {{ entry.receipt_observations }}</p>
+        {% endif %}
+
+        <div class="signature">
+            <div class="box"><div class="line">Firma empleado</div></div>
+            <div class="box"><div class="line">Firma RRHH</div></div>
+        </div>
+    </div>
+{% empty %}
+    <p>Sin entradas en esta quincena.</p>
+{% endfor %}
+{% endblock %}

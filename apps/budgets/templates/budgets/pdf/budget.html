@@ -1,0 +1,91 @@
+{% extends "pdf/base.html" %}
+
+{% block title %}Presupuesto · {{ budget.project.name }} · P{{ budget.version }}{% endblock %}
+
+{% block content %}
+<header class="header">
+    <div>
+        <h1>Presupuesto</h1>
+        <p class="small">{{ budget.project.name }} · Versión P{{ budget.version }}
+            {% if budget.is_locked %}<span class="badge approved">{{ budget.get_status_display }}</span>
+            {% else %}<span class="badge draft">{{ budget.get_status_display }}</span>{% endif %}
+        </p>
+        {% if budget.name %}<p>{{ budget.name }}</p>{% endif %}
+    </div>
+    <div class="right small">
+        <p><strong>{{ budget.project.company.name }}</strong></p>
+        {% if budget.project.company.tax_id %}<p>CUIT: {{ budget.project.company.tax_id }}</p>{% endif %}
+        <p>Emitido: {{ today|date:"d/m/Y" }}</p>
+        {% if budget.pricing_date %}<p>Precios al: {{ budget.pricing_date|date:"d/m/Y" }}</p>{% endif %}
+    </div>
+</header>
+
+<div class="kvs">
+    <div><span class="label">Obra:</span> <span class="value">{{ budget.project.name }}</span></div>
+    <div><span class="label">Moneda:</span> <span class="value">{{ budget.currency.code }}</span></div>
+    <div><span class="label">Dirección:</span> {{ budget.project.address|default:"—" }}</div>
+    <div><span class="label">Margen:</span> {{ budget.margin_pct }}%</div>
+    {% if budget.exchange_rate_type %}
+        <div><span class="label">Tipo de cotización:</span> {{ budget.exchange_rate_type.name }}</div>
+        <div><span class="label">Cotización congelada:</span> {{ budget.exchange_rate_value|default:"—" }}</div>
+    {% endif %}
+</div>
+
+<h2>Detalle</h2>
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tarea</th>
+            <th class="num">Cant.</th>
+            <th>Unidad</th>
+            <th class="num">Unit.</th>
+            <th class="num">Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in items_view %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    {% if row.item.task.code %}<strong>{{ row.item.task.code }}</strong> · {% endif %}
+                    {{ row.item.task.name }}
+                </td>
+                <td class="num">{{ row.item.quantity|floatformat:2 }}</td>
+                <td>{{ row.item.task.output_unit.symbol }}</td>
+                <td class="num">{{ row.unit_cost|floatformat:2 }}</td>
+                <td class="num">{{ row.total_cost|floatformat:2 }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" class="small muted" style="text-align:center;padding:14px;">Sin ítems.</td></tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr><td colspan="5" class="num small muted">Materiales</td><td class="num">{{ totals.materials|floatformat:2 }}</td></tr>
+        <tr><td colspan="5" class="num small muted">Mano de obra</td><td class="num">{{ totals.labor|floatformat:2 }}</td></tr>
+        <tr><td colspan="5" class="num small muted">Subcontratos</td><td class="num">{{ totals.subcontracts|floatformat:2 }}</td></tr>
+        <tr><td colspan="5" class="num small">Subtotal</td><td class="num">{{ totals.subtotal|floatformat:2 }}</td></tr>
+        <tr><td colspan="5" class="num small">Margen ({{ budget.margin_pct }}%)</td><td class="num">+{{ totals.margin_amount|floatformat:2 }}</td></tr>
+        <tr class="totals"><td colspan="5" class="num">Total ({{ budget.currency.code }})</td><td class="num">{{ totals.total_with_margin|floatformat:2 }}</td></tr>
+    </tfoot>
+</table>
+
+{% if budget.notes %}
+    <h2>Notas</h2>
+    <p>{{ budget.notes|linebreaksbr }}</p>
+{% endif %}
+
+<div class="signature">
+    <div class="box"><div class="line">Firma cliente</div></div>
+    <div class="box"><div class="line">Firma constructora</div></div>
+</div>
+
+<p class="small muted" style="margin-top: 18px;">
+    Presupuesto generado el {{ today|date:"d/m/Y" }}.
+    {% if budget.is_locked %}
+        Receta y precios congelados al {{ budget.pricing_date|date:"d/m/Y" }}.
+    {% else %}
+        ⚠ Borrador — los costos pueden variar al cierre del presupuesto.
+    {% endif %}
+</p>
+{% endblock %}

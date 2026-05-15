@@ -13,4 +13,5 @@ urlpatterns = [
     path("<int:pk>/aprobar/", views.budget_approve, name="approve"),
     path("<int:pk>/rechazar/", views.budget_reject, name="reject"),
     path("<int:pk>/clonar/", views.budget_clone, name="clone"),
+    path("<int:pk>/pdf/", views.budget_pdf, name="pdf"),
 ]
