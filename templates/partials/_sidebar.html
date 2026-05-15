@@ -1,4 +1,5 @@
-{# Sidebar de navegación. Las entradas se filtrarán por permisos a medida que avancen las fases. #}
+{% load permissions_tags %}
+{# Sidebar de navegación con filtrado por permisos. #}
 <aside class="w-60 shrink-0 bg-brand-pale border-r border-brand-light flex flex-col">
     <div class="px-4 py-5 border-b border-brand-light">
         <a href="/" class="block text-lg font-semibold text-gray-700">Mamsys</a>
@@ -7,34 +8,51 @@
         {% endif %}
     </div>
 
+    {# Pre-calcular flags. #}
+    {% has_perm "view_projects" as can_view_projects %}
+    {% has_perm "view_purchases" as can_view_purchases %}
+    {% has_perm "view_employees" as can_view_employees %}
+    {% has_perm "view_task_master" as can_view_task_master %}
+    {% has_perm "view_budgets" as can_view_budgets %}
+    {% has_perm "view_treasury" as can_view_treasury %}
+    {% has_perm "view_pricing" as can_view_pricing %}
+    {% has_perm "manage_catalog" as can_manage_catalog %}
+    {% has_perm "view_tracking" as can_view_tracking %}
+    {% has_perm "view_reports" as can_view_reports %}
+    {% has_perm "manage_users" as can_manage_users %}
+    {% has_perm "manage_organization" as can_manage_org %}
+
     <nav class="flex-1 overflow-y-auto py-3 text-[13px]">
         <ul class="space-y-0.5">
             {% include "partials/_nav_item.html" with url="/" label="Dashboard" %}
-            {% include "partials/_nav_item.html" with url="/obras/" label="Obras" %}
-            {% include "partials/_nav_item.html" with url="/compras/" label="Compras" %}
-            {% include "partials/_nav_item.html" with url="/nomina/empleados/" label="Nómina" %}
-            {% include "partials/_nav_item.html" with url="/maestros/" label="Maestros" %}
-            {% include "partials/_nav_item.html" with url="/presupuestos/" label="Presupuestos" %}
-            {% include "partials/_nav_item.html" with url="/tesoreria/" label="Tesorería" %}
-            {% include "partials/_nav_item.html" with url="/cotizaciones/" label="Cotizaciones" %}
-            {% include "partials/_nav_item.html" with url="/catalogos/" label="Catálogos" %}
-            {% include "partials/_nav_item.html" with url="#" label="Reportes" %}
+            {% if can_view_projects %}{% include "partials/_nav_item.html" with url="/obras/" label="Obras" %}{% endif %}
+            {% if can_view_purchases %}{% include "partials/_nav_item.html" with url="/compras/" label="Compras" %}{% endif %}
+            {% if can_view_employees %}{% include "partials/_nav_item.html" with url="/nomina/empleados/" label="Nómina" %}{% endif %}
+            {% if can_view_task_master %}{% include "partials/_nav_item.html" with url="/maestros/" label="Maestros" %}{% endif %}
+            {% if can_view_budgets %}{% include "partials/_nav_item.html" with url="/presupuestos/" label="Presupuestos" %}{% endif %}
+            {% if can_view_tracking %}{% include "partials/_nav_item.html" with url="/seguimiento/sugerencias/" label="Sugerencias" %}{% endif %}
+            {% if can_view_treasury %}{% include "partials/_nav_item.html" with url="/tesoreria/" label="Tesorería" %}{% endif %}
+            {% if can_view_pricing %}{% include "partials/_nav_item.html" with url="/cotizaciones/" label="Cotizaciones" %}{% endif %}
+            {% if can_manage_catalog %}{% include "partials/_nav_item.html" with url="/catalogos/" label="Catálogos" %}{% endif %}
+            {% if can_view_reports %}{% include "partials/_nav_item.html" with url="#" label="Reportes" %}{% endif %}
         </ul>
 
-        <p class="px-4 pt-4 pb-1 text-[10px] uppercase tracking-wider text-gray-500">Herramientas</p>
-        <ul class="space-y-0.5">
-            {% include "partials/_nav_item.html" with url="/importadores/" label="Importadores" %}
-        </ul>
+        {% if can_manage_catalog or can_manage_org %}
+            <p class="px-4 pt-4 pb-1 text-[10px] uppercase tracking-wider text-gray-500">Herramientas</p>
+            <ul class="space-y-0.5">
+                {% if can_manage_catalog %}{% include "partials/_nav_item.html" with url="/importadores/" label="Importadores" %}{% endif %}
+            </ul>
+        {% endif %}
 
         <p class="px-4 pt-4 pb-1 text-[10px] uppercase tracking-wider text-gray-500">Configuración</p>
         <ul class="space-y-0.5">
-            {% include "partials/_nav_item.html" with url="#" label="Usuarios y roles" %}
-            {% include "partials/_nav_item.html" with url="#" label="Mi organización" %}
+            {% if can_manage_users %}{% include "partials/_nav_item.html" with url="#" label="Usuarios y roles" %}{% endif %}
+            {% if can_manage_org %}{% include "partials/_nav_item.html" with url="#" label="Mi organización" %}{% endif %}
             {% include "partials/_nav_item.html" with url="#" label="Mi perfil" %}
         </ul>
     </nav>
 
     <div class="border-t border-brand-light px-4 py-3 text-xs text-gray-500">
-        v0.1 · Fase 1
+        v0.1
     </div>
 </aside>

@@ -7,13 +7,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 
+from apps.permissions.constants import VIEW_BUDGETS
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import BudgetForm, BudgetItemFormSet
 from .models import Budget
 from .services import BudgetApprovalService, BudgetCalculatorService
 
 
 @method_decorator(login_required, name="dispatch")
-class BudgetListView(ListView):
+class BudgetListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_BUDGETS
     model = Budget
     template_name = "budgets/list.html"
     paginate_by = 50

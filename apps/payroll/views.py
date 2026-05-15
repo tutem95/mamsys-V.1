@@ -8,6 +8,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import DetailView, ListView
 
+from apps.permissions.constants import (
+    MANAGE_SOCIAL_CHARGES,
+    VIEW_EMPLOYEES,
+    VIEW_PAYROLL,
+)
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import (
     EmergencyContactFormSet,
     EmployeeBankingForm,
@@ -34,7 +41,8 @@ from .services import SocialChargesProrateService
 
 
 @method_decorator(login_required, name="dispatch")
-class EmployeeListView(ListView):
+class EmployeeListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_EMPLOYEES
     model = Employee
     template_name = "payroll/employee_list.html"
     paginate_by = 50
@@ -165,7 +173,8 @@ def _employee_form(request, instance: Employee | None):
 
 
 @method_decorator(login_required, name="dispatch")
-class PayrollPeriodListView(ListView):
+class PayrollPeriodListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_PAYROLL
     model = PayrollPeriod
     template_name = "payroll/period_list.html"
     paginate_by = 50
@@ -347,7 +356,8 @@ def entry_edit(request, pk: int):
 # ---------------------------------------------------------------------------
 
 @method_decorator(login_required, name="dispatch")
-class SocialChargesPaymentListView(ListView):
+class SocialChargesPaymentListView(PermissionRequiredMixin, ListView):
+    required_permission = MANAGE_SOCIAL_CHARGES
     model = SocialChargesPayment
     template_name = "payroll/social_charges_list.html"
     paginate_by = 50

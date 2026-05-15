@@ -8,6 +8,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 
+from apps.permissions.constants import (
+    APPROVE_TASK_SUGGESTIONS,
+    VIEW_TRACKING,
+)
+from apps.permissions.decorators import (
+    PermissionRequiredMixin,
+    require_permission,
+)
 from apps.projects.models import Project
 from apps.task_master.models import TaskAdjustmentSuggestion
 
@@ -21,6 +29,7 @@ from .services import (
 
 
 @login_required
+@require_permission(VIEW_TRACKING)
 def project_tracking(request, pk: int):
     """Página de seguimiento de un proyecto: snapshot + tareas + acción regenerar."""
     project = get_object_or_404(Project, pk=pk)
@@ -47,7 +56,8 @@ def project_tracking(request, pk: int):
 
 
 @method_decorator(login_required, name="dispatch")
-class SuggestionListView(ListView):
+class SuggestionListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_TRACKING
     model = TaskAdjustmentSuggestion
     template_name = "tracking/suggestions.html"
     paginate_by = 50
@@ -85,6 +95,7 @@ def scan_variances(request):
 
 
 @login_required
+@require_permission(APPROVE_TASK_SUGGESTIONS)
 def suggestion_approve(request, pk: int):
     if request.method != "POST":
         return redirect("tracking:suggestions")
@@ -98,6 +109,7 @@ def suggestion_approve(request, pk: int):
 
 
 @login_required
+@require_permission(APPROVE_TASK_SUGGESTIONS)
 def suggestion_reject(request, pk: int):
     if request.method != "POST":
         return redirect("tracking:suggestions")

@@ -8,6 +8,9 @@ from django.utils.decorators import method_decorator
 from django.utils.timezone import localdate
 from django.views.generic import CreateView, ListView, UpdateView
 
+from apps.permissions.constants import VIEW_PRICING
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import ExchangeRateForm, ExchangeRateTypeForm
 from .models import ExchangeRate, ExchangeRateType
 
@@ -17,7 +20,8 @@ from .models import ExchangeRate, ExchangeRateType
 # ---------------------------------------------------------------------------
 
 @method_decorator(login_required, name="dispatch")
-class ExchangeRateTypeListView(ListView):
+class ExchangeRateTypeListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_PRICING
     model = ExchangeRateType
     template_name = "pricing/type_list.html"
     context_object_name = "rate_types"

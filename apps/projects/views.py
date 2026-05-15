@@ -5,12 +5,16 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from apps.permissions.constants import VIEW_PROJECTS
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import ProjectForm
 from .models import Project
 
 
 @method_decorator(login_required, name="dispatch")
-class ProjectListView(ListView):
+class ProjectListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_PROJECTS
     model = Project
     template_name = "projects/list.html"
     paginate_by = 50

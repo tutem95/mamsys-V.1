@@ -10,13 +10,17 @@ from django.utils.decorators import method_decorator
 from django.utils.timezone import localdate, now as tz_now
 from django.views.generic import ListView
 
+from apps.permissions.constants import VIEW_TREASURY
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import TreasuryEntryForm
 from .models import TreasuryEntry
 from .services import compute_account_balances
 
 
 @method_decorator(login_required, name="dispatch")
-class TreasuryEntryListView(ListView):
+class TreasuryEntryListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_TREASURY
     model = TreasuryEntry
     template_name = "treasury/list.html"
     paginate_by = 50

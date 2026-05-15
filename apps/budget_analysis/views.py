@@ -8,13 +8,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 
+from apps.permissions.constants import VIEW_BUDGETS
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import GenerateCrossForm
 from .models import BudgetVsActualReport
 from .services import BudgetActualCrossService, serialize_result
 
 
 @method_decorator(login_required, name="dispatch")
-class ReportListView(ListView):
+class ReportListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_BUDGETS
     model = BudgetVsActualReport
     template_name = "budget_analysis/list.html"
     paginate_by = 50

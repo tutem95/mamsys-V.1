@@ -11,6 +11,9 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import DetailView, ListView
 
+from apps.permissions.constants import VIEW_PURCHASES
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import PurchaseForm, PurchaseItemFormSet, PurchasePaymentForm
 from .models import (
     Purchase,
@@ -21,7 +24,8 @@ from .models import (
 
 
 @method_decorator(login_required, name="dispatch")
-class PurchaseListView(ListView):
+class PurchaseListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_PURCHASES
     model = Purchase
     template_name = "procurement/list.html"
     paginate_by = 50

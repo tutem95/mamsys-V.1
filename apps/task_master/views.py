@@ -9,6 +9,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 
+from apps.permissions.constants import VIEW_TASK_MASTER
+from apps.permissions.decorators import PermissionRequiredMixin
+
 from .forms import (
     MixComponentFormSet,
     MixForm,
@@ -25,7 +28,8 @@ from .services import TaskCostCalculator
 
 
 @method_decorator(login_required, name="dispatch")
-class MixListView(ListView):
+class MixListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_TASK_MASTER
     model = Mix
     template_name = "task_master/mix_list.html"
     paginate_by = 50
@@ -105,7 +109,8 @@ def mix_detail(request, pk: int):
 
 
 @method_decorator(login_required, name="dispatch")
-class TaskListView(ListView):
+class TaskListView(PermissionRequiredMixin, ListView):
+    required_permission = VIEW_TASK_MASTER
     model = Task
     template_name = "task_master/task_list.html"
     paginate_by = 50
