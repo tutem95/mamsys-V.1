@@ -41,6 +41,39 @@ class RubroImporter(BaseImporter):
         return ("created", name)
 
 
+class UnitImporter(BaseImporter):
+    slug = "unit"
+    label = "Unidades"
+    description = "Unidades de medida (nombre + símbolo único + categoría)."
+    columns = [
+        ColumnSpec("symbol", "Símbolo", required=True, help="Identificador único. Ej.: m2, kg, JORNAL."),
+        ColumnSpec("name", "Nombre", required=True),
+        ColumnSpec("category", "Categoría", help="length/area/volume/weight/time/global/other. Default other."),
+    ]
+
+    def process_row(self, row: dict, dry_run: bool) -> tuple[str, Any]:
+        symbol = (row.get("symbol") or "").strip()
+        name = (row.get("name") or "").strip()
+        if not symbol or not name:
+            raise ValueError("Símbolo y nombre son obligatorios.")
+        category = (row.get("category") or "").strip().lower() or Unit.Category.OTHER
+        if category not in {c[0] for c in Unit.Category.choices}:
+            category = Unit.Category.OTHER
+
+        existing = Unit.objects.filter(symbol=symbol).first()
+        if existing:
+            if dry_run:
+                return ("updated", symbol)
+            existing.name = name
+            existing.category = category
+            existing.save(update_fields=["name", "category", "updated_at"])
+            return ("updated", symbol)
+        if dry_run:
+            return ("created", symbol)
+        Unit.objects.create(symbol=symbol, name=name, category=category)
+        return ("created", symbol)
+
+
 class SubrubroImporter(BaseImporter):
     slug = "subrubro"
     label = "Subrubros"
@@ -742,15 +775,277 @@ def _parse_decimal(raw):
         return None
 
 
+# ---------------------------------------------------------------------------
+# PayrollPeriod (quincenas históricas: cabecera + entries por empleado)
+# ---------------------------------------------------------------------------
+
+
+class PayrollPeriodImporter(BaseImporter):
+    """Quincenas históricas con cabecera + entrada por empleado.
+
+    Cada fila trae la cabecera (redundante dentro del grupo) + datos del
+    empleado para esa quincena. Las filas con misma (company, year, month,
+    period_number) se agrupan en una sola PayrollPeriod.
+
+    Idempotente: re-importar actualiza la cabecera y upserts cada
+    PayrollEntry por (period, employee). No borra entries previas de la
+    quincena que no estén en el archivo (cuidado al re-importar archivos
+    parciales — los empleados omitidos quedan con sus valores anteriores).
+
+    Imputación a obras (PayrollAllocation) NO se importa acá; se carga
+    manualmente desde la UI de cada entry. Para historial pasamos sin
+    imputar (los KPIs por obra solo aplican desde acá en adelante).
+    """
+
+    slug = "payroll_period"
+    label = "Quincenas históricas"
+    description = (
+        "Quincenas con cabecera + una fila por empleado. Las filas con "
+        "misma (sociedad, año, mes, número de quincena) se agrupan en una "
+        "PayrollPeriod. Idempotente por (sociedad, año, mes, periodo)."
+    )
+    columns = [
+        # Cabecera
+        ColumnSpec("company", "Sociedad (nombre)", required=True),
+        ColumnSpec("year", "Año", required=True),
+        ColumnSpec("month", "Mes", required=True, help="1-12."),
+        ColumnSpec("period_number", "Nº quincena", required=True, help="1 o 2."),
+        ColumnSpec("start_date", "Inicio", required=True, help="YYYY-MM-DD."),
+        ColumnSpec("end_date", "Fin", required=True, help="YYYY-MM-DD."),
+        ColumnSpec("talonario_name", "Talonario", help="Ej.: '1era Quincena Mayo'."),
+        ColumnSpec("working_days", "Días L-V", help="Default 10."),
+        ColumnSpec("saturdays", "Sábados", help="Default 2."),
+        ColumnSpec("holidays", "Feriados", help="Default 0."),
+        ColumnSpec("total_days", "Días total", help="Default 12."),
+        ColumnSpec("hours_weekday", "Horas L-V", help="Default 8."),
+        ColumnSpec("hours_saturday", "Horas sábado", help="Default 7."),
+        ColumnSpec("total_hours", "Horas total", help="Default 94."),
+        ColumnSpec("plus_overtime_pct", "% Plus H.Extra", help="Ej.: 12 → 12%."),
+        ColumnSpec("plus_presentismo_pct", "% Plus Presentismo", help="Ej.: 2.3 → 2.30%."),
+        ColumnSpec("status", "Estado", help="open/closed/paid. Default closed (histórico)."),
+        # Entrada (por empleado)
+        ColumnSpec("employee_internal_id", "ID empleado", help="Usar este o employee_name."),
+        ColumnSpec("employee_first_name", "Nombre", help="Si no hay internal_id."),
+        ColumnSpec("employee_last_name", "Apellido", help="Si no hay internal_id."),
+        ColumnSpec("value_jornal", "Valor jornal", help="Decimal por día trabajado."),
+        ColumnSpec("days_worked", "Días trabajados", help="Default total_days de la quincena."),
+        ColumnSpec("absences", "Faltas", help="Default 0."),
+        ColumnSpec("justified_absences", "Justificadas", help="Default 0."),
+        ColumnSpec("vacations", "Vacaciones (días)", help="Default 0."),
+        ColumnSpec("vacations_amount", "Vacaciones $", help="Default 0."),
+        ColumnSpec("late_hours", "H. tarde", help="Default 0."),
+        ColumnSpec("late_hours_amount", "H. tarde $", help="Default 0."),
+        ColumnSpec("overtime_hours", "H. extra", help="Default 0."),
+        ColumnSpec("bank_amount", "Banco $", help="Resto cae en efectivo."),
+        ColumnSpec("receipt_observations", "Observaciones recibo", help="Opcional."),
+    ]
+
+    def run(self, rows: list[dict], dry_run: bool = True):
+        from collections import defaultdict
+
+        from .base import ImportResult, RowError
+
+        result = ImportResult(rows_total=0)
+
+        groups: dict[tuple, list[tuple[int, dict]]] = defaultdict(list)
+        for idx, row in enumerate(rows, start=2):
+            try:
+                company_name = (row.get("company") or "").strip()
+                year = int(str(row.get("year") or "").strip())
+                month = int(str(row.get("month") or "").strip())
+                period_number = int(str(row.get("period_number") or "").strip())
+            except (ValueError, TypeError):
+                result.errors.append(RowError(
+                    row=idx,
+                    message="Faltan o son inválidos: company, year, month, period_number.",
+                ))
+                continue
+            if not company_name:
+                result.errors.append(RowError(row=idx, message="company vacío."))
+                continue
+            key = (company_name.upper(), year, month, period_number)
+            groups[key].append((idx, row))
+
+        result.rows_total = len(groups)
+
+        for key, group_rows in groups.items():
+            first_idx = group_rows[0][0]
+            try:
+                action, label, entries_count = self._process_group(group_rows, dry_run)
+                if action == "created":
+                    result.rows_created += 1
+                    result.rows_ok += 1
+                elif action == "updated":
+                    result.rows_updated += 1
+                    result.rows_ok += 1
+                if len(result.preview) < 20:
+                    result.preview.append({
+                        "row": first_idx, "action": action,
+                        "value": f"{label} · {entries_count} empleado(s)",
+                    })
+            except ValueError as exc:
+                result.errors.append(RowError(row=first_idx, message=str(exc)))
+
+        return result
+
+    def _process_group(self, group_rows, dry_run):
+        from django.db import transaction
+
+        with transaction.atomic():
+            return self._process_group_inner(group_rows, dry_run)
+
+    def _process_group_inner(self, group_rows, dry_run):
+        from apps.companies.models import Company
+        from apps.currencies.models import Currency
+        from apps.payroll.models import PayrollEntry, PayrollPeriod
+
+        header_row = group_rows[0][1]
+        company_name = (header_row.get("company") or "").strip()
+        year = int(str(header_row.get("year")).strip())
+        month = int(str(header_row.get("month")).strip())
+        period_number = int(str(header_row.get("period_number")).strip())
+        start_date = _parse_date(header_row.get("start_date"))
+        end_date = _parse_date(header_row.get("end_date"))
+
+        if start_date is None or end_date is None:
+            raise ValueError("start_date y end_date son obligatorios.")
+        if not (1 <= month <= 12):
+            raise ValueError(f"Mes inválido: {month}.")
+        if period_number not in (1, 2):
+            raise ValueError(f"period_number debe ser 1 o 2 (vino {period_number}).")
+
+        company = Company.objects.filter(name=company_name).first()
+        if company is None:
+            raise ValueError(f"Sociedad '{company_name}' no existe.")
+
+        # Defaults para campos numéricos.
+        defaults_int = {
+            "working_days": 10, "saturdays": 2, "holidays": 0, "total_days": 12,
+            "hours_weekday": 8, "hours_saturday": 7, "total_hours": 94,
+        }
+        period_data = {}
+        for key, default in defaults_int.items():
+            raw = header_row.get(key)
+            period_data[key] = int(str(raw).strip()) if raw not in (None, "", " ") else default
+
+        period_data["plus_overtime_pct"] = _parse_decimal(header_row.get("plus_overtime_pct")) or Decimal("0")
+        period_data["plus_presentismo_pct"] = _parse_decimal(header_row.get("plus_presentismo_pct")) or Decimal("0")
+        period_data["start_date"] = start_date
+        period_data["end_date"] = end_date
+        period_data["talonario_name"] = (header_row.get("talonario_name") or "").strip()
+
+        status = (header_row.get("status") or "closed").strip().lower()
+        if status not in {c[0] for c in PayrollPeriod.Status.choices}:
+            status = PayrollPeriod.Status.CLOSED
+        period_data["status"] = status
+
+        label = f"P{period_number} {month:02d}/{year} · {company_name}"
+
+        existing = PayrollPeriod.objects.filter(
+            company=company, year=year, month=month, period_number=period_number,
+        ).first()
+        action = "updated" if existing else "created"
+
+        if dry_run:
+            return (action, label, len([r for r in group_rows if _row_has_employee_data(r[1])]))
+
+        if existing:
+            period = existing
+            for k, v in period_data.items():
+                setattr(period, k, v)
+            period.save()
+        else:
+            period = PayrollPeriod.objects.create(
+                company=company, year=year, month=month, period_number=period_number,
+                **period_data,
+            )
+
+        # Procesar entries.
+        ars = Currency.objects.get(code="ARS")
+        entries_count = 0
+        for _idx, row in group_rows:
+            if not _row_has_employee_data(row):
+                continue
+            employee = self._resolve_employee(row, company)
+            if employee is None:
+                raise ValueError(self._employee_label(row) + " no se encontró.")
+
+            value_jornal = _parse_decimal(row.get("value_jornal")) or Decimal("0")
+            days_worked = _parse_decimal(row.get("days_worked"))
+            if days_worked is None:
+                days_worked = Decimal(period_data.get("total_days", 12))
+
+            entry_defaults = {
+                "currency": employee.last_known_currency or ars,
+                "value_jornal": value_jornal,
+                "days_worked": days_worked,
+                "absences": _parse_decimal(row.get("absences")) or Decimal("0"),
+                "justified_absences": _parse_decimal(row.get("justified_absences")) or Decimal("0"),
+                "vacations": _parse_decimal(row.get("vacations")) or Decimal("0"),
+                "vacations_amount": _parse_decimal(row.get("vacations_amount")) or Decimal("0"),
+                "late_hours": _parse_decimal(row.get("late_hours")) or Decimal("0"),
+                "late_hours_amount": _parse_decimal(row.get("late_hours_amount")) or Decimal("0"),
+                "overtime_hours": _parse_decimal(row.get("overtime_hours")) or Decimal("0"),
+                "bank_amount": _parse_decimal(row.get("bank_amount")) or Decimal("0"),
+                "receipt_observations": (row.get("receipt_observations") or "").strip(),
+            }
+
+            entry = PayrollEntry.objects.filter(payroll_period=period, employee=employee).first()
+            if entry is None:
+                entry = PayrollEntry(payroll_period=period, employee=employee)
+            for k, v in entry_defaults.items():
+                setattr(entry, k, v)
+            entry.save()  # dispara recalculate() en cascada
+            entries_count += 1
+
+        return (action, label, entries_count)
+
+    def _resolve_employee(self, row: dict, company):
+        from apps.payroll.models import Employee
+
+        internal_id = (row.get("employee_internal_id") or "").strip()
+        if internal_id:
+            return Employee.objects.filter(company=company, internal_id=internal_id).first()
+        first_name = (row.get("employee_first_name") or "").strip()
+        last_name = (row.get("employee_last_name") or "").strip()
+        if not (first_name and last_name):
+            return None
+        return (
+            Employee.objects.filter(
+                company=company,
+                personal_data__first_name=first_name,
+                personal_data__last_name=last_name,
+            )
+            .first()
+        )
+
+    def _employee_label(self, row: dict) -> str:
+        internal_id = (row.get("employee_internal_id") or "").strip()
+        if internal_id:
+            return f"Empleado #{internal_id}"
+        first_name = (row.get("employee_first_name") or "").strip()
+        last_name = (row.get("employee_last_name") or "").strip()
+        return f"{first_name} {last_name}".strip() or "Empleado sin identificar"
+
+
+def _row_has_employee_data(row: dict) -> bool:
+    return bool(
+        (row.get("employee_internal_id") or "").strip()
+        or ((row.get("employee_first_name") or "").strip() and (row.get("employee_last_name") or "").strip())
+    )
+
+
 # Registro central
 IMPORTERS: dict[str, type[BaseImporter]] = {
     RubroImporter.slug: RubroImporter,
     SubrubroImporter.slug: SubrubroImporter,
+    UnitImporter.slug: UnitImporter,
     MaterialImporter.slug: MaterialImporter,
     SupplierImporter.slug: SupplierImporter,
     EmployeeImporter.slug: EmployeeImporter,
     ExchangeRateImporter.slug: ExchangeRateImporter,
     PurchaseImporter.slug: PurchaseImporter,
+    PayrollPeriodImporter.slug: PayrollPeriodImporter,
 }
 
 
