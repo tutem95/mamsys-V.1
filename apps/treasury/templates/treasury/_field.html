@@ -1,0 +1,14 @@
+{% load widget_tweaks %}
+<div>
+    <label class="block text-xs font-medium text-gray-700 mb-1">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+    {% if field.field.widget.input_type == 'checkbox' %}
+        <div class="flex items-center gap-2">
+            {% render_field field class="rounded border-gray-200" %}
+            <span class="text-xs text-gray-500">{{ field.help_text }}</span>
+        </div>
+    {% else %}
+        {% render_field field class="w-full border border-gray-200 rounded px-2 py-1.5 text-sm focus:border-brand-mid focus:outline-none focus:ring-1 focus:ring-brand-mid" %}
+        {% if field.help_text %}<p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>{% endif %}
+    {% endif %}
+    {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+</div>

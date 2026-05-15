@@ -128,6 +128,14 @@ CATALOGS: dict[str, dict[str, Any]] = {
         "columns": [("name", "Nombre"), ("leader", "Líder"), ("active", "Activo")],
         "select_related": ("leader",),
     },
+    "bankaccount": {
+        "model": catalog_models.BankAccount,
+        "form": catalog_forms.BankAccountForm,
+        "label_plural": "Cuentas bancarias",
+        "label_singular": "cuenta bancaria",
+        "columns": [("bank", "Banco"), ("company", "Sociedad"), ("account_number", "Nº"), ("currency", "Moneda"), ("active", "Activa")],
+        "select_related": ("bank", "company", "currency"),
+    },
 }
 
 

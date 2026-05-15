@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Saldos · Tesorería · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <a href="{% url 'treasury:list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Tesorería</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">Saldos por cuenta</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            Saldos = ingresos − egresos.
+            {% if cutoff %}Cortado al {{ cutoff }}.{% endif %}
+            <span class="text-amber-700">Conversión multi-moneda no aplicada — cada cuenta muestra el saldo en su propia moneda.</span>
+        </p>
+    </div>
+</header>
+
+<form method="get" class="flex gap-2 mb-4 text-xs items-end">
+    <div>
+        <label class="block text-gray-500 mb-1">Sociedad</label>
+        <select name="sociedad" class="border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for c in companies %}<option value="{{ c.pk }}" {% if current_company == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Hasta</label>
+        <input type="date" name="hasta" value="{{ cutoff|default:"" }}" class="border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1">Aplicar</button>
+    {% if cutoff or current_company %}<a href="{% url 'treasury:balances' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>{% endif %}
+</form>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Cuenta</th>
+                <th class="text-right px-3 py-2 font-medium">Ingresos</th>
+                <th class="text-right px-3 py-2 font-medium">Egresos</th>
+                <th class="text-right px-3 py-2 font-medium">Saldo</th>
+                <th class="text-left px-3 py-2 font-medium">Moneda</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ r.label }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-green-700">+{{ r.income|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-red-700">-{{ r.expense|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono font-semibold
+                        {% if r.balance > 0 %}text-green-700
+                        {% elif r.balance < 0 %}text-red-700
+                        {% else %}text-gray-500{% endif %}">
+                        {{ r.balance|floatformat:2 }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ r.currency_code }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="px-3 py-6 text-center text-xs text-gray-500">Sin movimientos para calcular saldos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

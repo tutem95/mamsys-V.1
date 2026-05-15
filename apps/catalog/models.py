@@ -130,8 +130,7 @@ class Position(CatalogItem):
 class Bank(CatalogItem):
     """Catálogo de bancos (Galicia, Ciudad, Provincia, etc.).
 
-    Las cuentas bancarias específicas (BankAccount) viven aparte y necesitan
-    Currency + Company; se sumarán cuando esos catálogos existan.
+    Las cuentas bancarias específicas viven en `BankAccount` debajo.
     """
 
     class Meta(CatalogItem.Meta):
@@ -140,6 +139,45 @@ class Bank(CatalogItem):
         constraints = [
             models.UniqueConstraint(fields=["name"], name="bank_unique_name"),
         ]
+
+
+class BankAccount(CatalogItem):
+    """Cuenta bancaria específica de una sociedad en un banco.
+
+    El `name` heredado de CatalogItem se usa como alias amigable. La identidad
+    real es (bank, company, account_number).
+    """
+
+    bank = models.ForeignKey(
+        Bank, on_delete=models.PROTECT, related_name="accounts",
+    )
+    company = models.ForeignKey(
+        "companies.Company", on_delete=models.PROTECT, related_name="bank_accounts",
+    )
+    currency = models.ForeignKey(
+        "currencies.Currency", on_delete=models.PROTECT, related_name="bank_accounts",
+    )
+    account_number = models.CharField(max_length=50, blank=True)
+    cbu = models.CharField("CBU", max_length=22, blank=True)
+    alias = models.CharField(max_length=80, blank=True)
+
+    class Meta(CatalogItem.Meta):
+        verbose_name = "Cuenta bancaria"
+        verbose_name_plural = "Cuentas bancarias"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bank", "company", "account_number"],
+                condition=~models.Q(account_number=""),
+                name="bankaccount_unique_per_bank_company",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        bits = [self.bank.name, self.company.name]
+        if self.account_number:
+            bits.append(self.account_number)
+        bits.append(f"({self.currency.code})")
+        return " · ".join(bits)
 
 
 class Team(CatalogItem):

@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     Bank,
+    BankAccount,
     BusinessComponent,
     EmployeeStatus,
     ExtraordinaryConcept,
@@ -16,6 +17,14 @@ from .models import (
     TrackingCategory,
     Unit,
 )
+
+
+@admin.register(BankAccount)
+class BankAccountAdmin(admin.ModelAdmin):
+    list_display = ("bank", "company", "account_number", "currency", "alias", "active")
+    list_filter = ("bank", "company", "currency", "active")
+    search_fields = ("name", "account_number", "cbu", "alias")
+    autocomplete_fields = ("bank", "company", "currency")
 
 
 @admin.register(Rubro)

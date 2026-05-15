@@ -4,6 +4,7 @@ from django import forms
 
 from .models import (
     Bank,
+    BankAccount,
     BusinessComponent,
     EmployeeStatus,
     ExtraordinaryConcept,
@@ -124,3 +125,13 @@ class TeamForm(forms.ModelForm):
         model = Team
         fields = ("name", "code", "leader", "notes", "active", "order")
         widgets = {"notes": forms.Textarea(attrs={"rows": 2})}
+
+
+class BankAccountForm(forms.ModelForm):
+    class Meta:
+        model = BankAccount
+        fields = (
+            "bank", "company", "currency",
+            "name", "account_number", "cbu", "alias",
+            "active", "order",
+        )

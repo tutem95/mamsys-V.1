@@ -20,6 +20,7 @@ SLUG_PATHS: dict[str, str] = {
     "material": "materiales",
     "subcontract": "subcontratos",
     "team": "equipos",
+    "bankaccount": "cuentas-bancarias",
 }
 
 

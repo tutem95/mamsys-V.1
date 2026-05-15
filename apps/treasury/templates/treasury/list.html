@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Tesorería · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Tesorería</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            <a href="{% url 'treasury:balances' %}" class="text-brand-mid hover:underline">Saldos por cuenta →</a>
+        </p>
+    </div>
+    <a href="{% url 'treasury:create' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo movimiento
+    </a>
+</header>
+
+{# KPIs #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Movimientos</p>
+        <p class="text-base font-semibold text-gray-700 mt-0.5">{{ paginator.count }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Ingresos (página)</p>
+        <p class="text-base font-mono font-semibold text-green-700 mt-0.5">+{{ page_income|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Egresos (página)</p>
+        <p class="text-base font-mono font-semibold text-red-700 mt-0.5">-{{ page_expense|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Neto (página)</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ page_net|floatformat:2 }}</p>
+    </div>
+</div>
+
+<form method="get" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4 text-xs items-end">
+    <div>
+        <label class="block text-gray-500 mb-1">Tipo</label>
+        <select name="tipo" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            {% for v, l in entry_type_choices %}<option value="{{ v }}" {% if current.tipo == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Categoría</label>
+        <select name="categoria" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for v, l in category_choices %}<option value="{{ v }}" {% if current.categoria == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Sociedad</label>
+        <select name="sociedad" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for c in companies %}<option value="{{ c.pk }}" {% if current.sociedad == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Cuenta</label>
+        <select name="cuenta" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for a in bank_accounts %}<option value="{{ a.pk }}" {% if current.cuenta == a.pk|stringformat:"s" %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Obra</label>
+        <select name="obra" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todas</option>
+            {% for p in projects %}<option value="{{ p.pk }}" {% if current.obra == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Desde</label>
+        <input type="date" name="desde" value="{{ current.desde }}" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Hasta</label>
+        <input type="date" name="hasta" value="{{ current.hasta }}" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+    </div>
+    <div>
+        <label class="block text-gray-500 mb-1">Conciliado</label>
+        <select name="conciliado" class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+            <option value="">Todos</option>
+            <option value="1" {% if current.conciliado == "1" %}selected{% endif %}>Sí</option>
+            <option value="0" {% if current.conciliado == "0" %}selected{% endif %}>No</option>
+        </select>
+    </div>
+    <div class="col-span-2 md:col-span-4 lg:col-span-8 flex gap-2 justify-end">
+        <a href="{% url 'treasury:list' %}" class="text-gray-500 hover:text-brand-mid self-center">Limpiar</a>
+        <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white rounded px-3 py-1.5">Filtrar</button>
+    </div>
+</form>
+
+<div class="border border-gray-100 rounded overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Fecha</th>
+                <th class="text-left px-3 py-2 font-medium">Tipo</th>
+                <th class="text-left px-3 py-2 font-medium">Categoría</th>
+                <th class="text-left px-3 py-2 font-medium">Sociedad</th>
+                <th class="text-left px-3 py-2 font-medium">Cuenta</th>
+                <th class="text-left px-3 py-2 font-medium">Obra</th>
+                <th class="text-right px-3 py-2 font-medium">Monto</th>
+                <th class="text-left px-3 py-2 font-medium">Descripción</th>
+                <th class="text-left px-3 py-2 font-medium">✓</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ e.date|date:"d/m/Y" }}</td>
+                    <td class="px-3 py-2 text-xs">
+                        {% if e.entry_type == "income" %}<span class="text-green-700">↑ Ingreso</span>
+                        {% elif e.entry_type == "expense" %}<span class="text-red-700">↓ Egreso</span>
+                        {% else %}<span class="text-gray-500">{{ e.get_entry_type_display }}</span>{% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ e.get_category_display }}</td>
+                    <td class="px-3 py-2 text-gray-700">{{ e.company.name }}</td>
+                    <td class="px-3 py-2 text-xs text-gray-700">{% if e.bank_account %}{{ e.bank_account.bank.name }}{% else %}<span class="text-gray-400">Efectivo</span>{% endif %}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ e.project.name|default:"—" }}</td>
+                    <td class="px-3 py-2 text-right font-mono
+                        {% if e.entry_type == 'income' %}text-green-700
+                        {% elif e.entry_type == 'expense' %}text-red-700
+                        {% endif %}">
+                        {{ e.amount|floatformat:2 }} {{ e.currency.code }}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-700">{{ e.description|default:"—"|truncatechars:60 }}</td>
+                    <td class="px-3 py-2">
+                        <form method="post" action="{% url 'treasury:toggle_reconciled' e.pk %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" title="Marcar/desmarcar conciliado" class="text-xs {% if e.is_reconciled %}text-green-600{% else %}text-gray-300 hover:text-brand-mid{% endif %}">
+                                {% if e.is_reconciled %}✓{% else %}○{% endif %}
+                            </button>
+                        </form>
+                    </td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'treasury:edit' e.pk %}" class="text-xs text-brand-mid hover:underline">Editar</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="10" class="px-3 py-6 text-center text-xs text-gray-500">Sin movimientos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+    <nav class="flex justify-between items-center mt-3 text-xs text-gray-500">
+        <span>Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+        <div class="space-x-2">
+            {% if page_obj.has_previous %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}" class="text-brand-mid hover:underline">← Anterior</a>{% endif %}
+            {% if page_obj.has_next %}<a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}" class="text-brand-mid hover:underline">Siguiente →</a>{% endif %}
+        </div>
+    </nav>
+{% endif %}
+{% endblock %}
