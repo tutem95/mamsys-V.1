@@ -74,17 +74,17 @@ class PermissionRequiredMixin:
 
     required_permission: str | None = None
 
-    def has_required_permission(self) -> bool:
+    def has_required_permission(self, request) -> bool:
         if self.required_permission is None:
             return True
-        org = get_current_org(self.request)
+        org = get_current_org(request)
         if org is None:
             return True  # public schema, no gating
-        return user_has_permission(self.request.user, org, self.required_permission)
+        return user_has_permission(request.user, org, self.required_permission)
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect("account_login")
-        if not self.has_required_permission():
+        if not self.has_required_permission(request):
             return _deny(request, self.required_permission or "?")
         return super().dispatch(request, *args, **kwargs)

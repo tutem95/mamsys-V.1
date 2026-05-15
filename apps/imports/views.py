@@ -9,12 +9,16 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 
+from apps.permissions.constants import MANAGE_CATALOG
+from apps.permissions.decorators import PermissionRequiredMixin, require_permission
+
 from .base import parse_file
 from .importers import IMPORTERS, get_importer
 from .models import ImportLog
 
 
 @login_required
+@require_permission(MANAGE_CATALOG)
 def index(request):
     """Lista de importadores disponibles."""
     importers = [
@@ -30,6 +34,7 @@ def index(request):
 
 
 @login_required
+@require_permission(MANAGE_CATALOG)
 def upload(request, slug: str):
     """Sube un CSV/XLSX, parsea y muestra preview (dry-run).
 
@@ -85,6 +90,7 @@ def upload(request, slug: str):
 
 
 @login_required
+@require_permission(MANAGE_CATALOG)
 def confirm(request, slug: str):
     """Confirma la importación leyendo las rows de la sesión."""
     importer = get_importer(slug)
@@ -139,7 +145,8 @@ def confirm(request, slug: str):
 
 
 @method_decorator(login_required, name="dispatch")
-class LogListView(ListView):
+class LogListView(PermissionRequiredMixin, ListView):
+    required_permission = MANAGE_CATALOG
     model = ImportLog
     template_name = "imports/log_list.html"
     paginate_by = 50
@@ -147,6 +154,7 @@ class LogListView(ListView):
 
 
 @login_required
+@require_permission(MANAGE_CATALOG)
 def log_detail(request, pk: int):
     log = ImportLog.objects.get(pk=pk)
     return render(request, "imports/log_detail.html", {"log": log})
