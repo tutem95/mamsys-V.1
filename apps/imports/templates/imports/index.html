@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Importadores · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Importadores</h1>
+        <p class="text-xs text-gray-500 mt-1">
+            Subí planillas CSV o Excel. El sistema valida y te muestra una vista previa antes de confirmar.
+        </p>
+    </div>
+    <a href="{% url 'imports:log_list' %}" class="text-sm text-brand-mid hover:underline">Historial de importaciones →</a>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for imp in importers %}
+        <a href="{% url 'imports:upload' imp.slug %}"
+           class="block border border-gray-100 rounded p-4 hover:border-brand-light hover:bg-brand-pale transition-colors">
+            <p class="text-xs uppercase tracking-wider text-gray-500">{{ imp.slug }}</p>
+            <p class="text-base font-semibold text-gray-700 mt-0.5">{{ imp.label }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ imp.description }}</p>
+            <p class="text-xs text-brand-mid mt-2">Subir →</p>
+        </a>
+    {% endfor %}
+</div>
+
+<p class="text-xs text-gray-500 mt-6">
+    Más importadores se sumarán en próximas entregas: Proveedores, Empleados,
+    Compras históricas, Quincenas, Cotizaciones.
+</p>
+{% endblock %}

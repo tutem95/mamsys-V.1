@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Vista previa · {{ importer.label }} · Mamsys{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl">
+    <header class="mb-6">
+        <a href="{% url 'imports:upload' importer.slug %}" class="text-xs text-gray-500 hover:text-brand-mid">← Volver</a>
+        <h1 class="text-xl font-semibold text-gray-700 mt-1">Vista previa — {{ importer.label }}</h1>
+        <p class="text-xs text-gray-500 mt-1">{{ filename }} · {{ rows_count }} fila{{ rows_count|pluralize }}</p>
+    </header>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Total</p>
+            <p class="text-base font-semibold text-gray-700 mt-0.5">{{ result.rows_total }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">A crear</p>
+            <p class="text-base font-semibold text-green-700 mt-0.5">{{ result.rows_created }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">A actualizar</p>
+            <p class="text-base font-semibold text-brand-mid mt-0.5">{{ result.rows_updated }}</p>
+        </div>
+        <div class="border border-gray-100 rounded p-3">
+            <p class="text-xs uppercase tracking-wider text-gray-500">Con error</p>
+            <p class="text-base font-semibold text-red-700 mt-0.5">{{ result.rows_error }}</p>
+        </div>
+    </div>
+
+    {% if result.errors %}
+        <section class="mb-6">
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Errores</h2>
+            <div class="border border-red-200 bg-red-50 rounded overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-red-100 text-xs">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-medium">Fila</th>
+                            <th class="text-left px-3 py-2 font-medium">Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in result.errors %}
+                            <tr class="border-t border-red-200">
+                                <td class="px-3 py-1.5 text-red-700 font-mono">{{ e.row }}</td>
+                                <td class="px-3 py-1.5 text-red-700">{{ e.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+                Las filas con error <em>no se guardarán</em>. Las que pasen sí. Si querés corregir y reintentar, volvé a subir el archivo corregido.
+            </p>
+        </section>
+    {% endif %}
+
+    {% if result.preview %}
+        <section class="mb-6">
+            <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Muestra de filas a procesar (primeras 20)</h2>
+            <div class="border border-gray-100 rounded overflow-hidden">
+                <table class="w-full text-sm">
+                    <thead class="bg-brand-pale text-xs">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-medium">Fila</th>
+                            <th class="text-left px-3 py-2 font-medium">Acción</th>
+                            <th class="text-left px-3 py-2 font-medium">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in result.preview %}
+                            <tr class="border-t border-gray-50">
+                                <td class="px-3 py-1.5 font-mono text-xs">{{ p.row }}</td>
+                                <td class="px-3 py-1.5 text-xs
+                                    {% if p.action == 'created' %}text-green-700
+                                    {% elif p.action == 'updated' %}text-brand-mid
+                                    {% else %}text-gray-500{% endif %}">
+                                    {{ p.action }}
+                                </td>
+                                <td class="px-3 py-1.5 text-gray-700">{{ p.value }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+    <form method="post" action="{% url 'imports:confirm' importer.slug %}" class="flex justify-end gap-2 pt-4 border-t border-gray-100">
+        {% csrf_token %}
+        <a href="{% url 'imports:upload' importer.slug %}" class="text-xs text-gray-500 hover:text-brand-mid self-center">Cancelar</a>
+        <button type="submit" class="bg-brand-mid hover:bg-brand-light text-white font-medium rounded px-4 py-2 transition-colors"
+                {% if result.rows_total == 0 %}disabled{% endif %}>
+            Confirmar importación
+        </button>
+    </form>
+</div>
+{% endblock %}

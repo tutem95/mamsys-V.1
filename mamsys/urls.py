@@ -17,6 +17,7 @@ urlpatterns = [
     path("presupuesto-vs-real/", include("apps.budget_analysis.urls")),
     path("tesoreria/", include("apps.treasury.urls")),
     path("seguimiento/", include("apps.tracking.urls")),
+    path("importadores/", include("apps.imports.urls")),
     path("obras/", include("apps.projects.urls")),
     path("", include("apps.core.urls")),
     # Apps de negocio se suman aquí a medida que avanzan las fases.

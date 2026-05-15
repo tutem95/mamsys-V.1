@@ -77,7 +77,8 @@ TENANT_APPS = [
     "apps.budget_analysis",
     "apps.treasury",
     "apps.tracking",
-    # próxima fase: reporting (pulido) — PDFs, importadores, dashboards.
+    "apps.imports",
+    # pulido pendiente: PDFs, dashboards, permisos finos.
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [a for a in TENANT_APPS if a not in SHARED_APPS]
