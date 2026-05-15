@@ -453,6 +453,295 @@ def _parse_bool(raw) -> bool:
     return s in {"1", "true", "yes", "si", "sí", "y", "t"}
 
 
+# ---------------------------------------------------------------------------
+# Purchase (compras históricas — cabecera + items en el mismo archivo)
+# ---------------------------------------------------------------------------
+
+
+class PurchaseImporter(BaseImporter):
+    """Compras agrupadas por (supplier, document_number).
+
+    Cada fila trae los campos de cabecera (redundantes dentro del grupo) +
+    opcionalmente los datos del ítem. El primer row del grupo define la
+    cabecera; los subsiguientes solo aportan items si traen material+qty.
+
+    Idempotente: si ya existe una Purchase con (supplier, document_number),
+    se actualiza la cabecera y se REEMPLAZAN sus items (sino habría
+    duplicación al re-importar). Esto significa que NO se mezclan items
+    de varias importaciones — el archivo es la fuente de verdad de items.
+    """
+
+    slug = "purchase"
+    label = "Compras históricas"
+    description = (
+        "Compras con cabecera + items. Una fila por item (o por compra sin items). "
+        "Las filas con el mismo `document_number` y `supplier` se agrupan en una "
+        "sola Purchase. Idempotente: re-importar reemplaza los items existentes."
+    )
+    columns = [
+        ColumnSpec("document_number", "Nº comprobante", required=True),
+        ColumnSpec("invoice_date", "Fecha factura", required=True, help="YYYY-MM-DD o DD/MM/YYYY."),
+        ColumnSpec("supplier", "Proveedor (nombre)", required=True),
+        ColumnSpec("company", "Sociedad (nombre)", required=True),
+        ColumnSpec("rubro", "Rubro (nombre)", required=True),
+        ColumnSpec("currency", "Moneda (código)", required=True, help="ARS, USD, EUR…"),
+        ColumnSpec("total_amount", "Total c/IVA", required=True, help="Acepta coma decimal."),
+        ColumnSpec("document_type", "Tipo doc", help="factura_a/b/c, presupuesto, remito, ticket, otro."),
+        ColumnSpec("purchase_type", "Tipo compra", help="obra / admin / cadeteria. Default obra."),
+        ColumnSpec("project", "Obra (nombre)", help="Requerido si purchase_type=obra."),
+        ColumnSpec("subrubro", "Subrubro", help="Opcional."),
+        ColumnSpec("is_subcontract", "Subcontrato", help="True si toda la compra es un subcontrato."),
+        ColumnSpec("amount_without_tax", "Subtotal sin IVA", help="Opcional."),
+        ColumnSpec("iva_21", "IVA 21%", help="Opcional."),
+        ColumnSpec("iva_10_5", "IVA 10,5%", help="Opcional."),
+        ColumnSpec("perc_iibb", "Perc. IIBB", help="Opcional."),
+        ColumnSpec("status", "Estado", help="draft/to_pay/paid_partial/paid/cancelled. Default to_pay."),
+        ColumnSpec("payment_method", "Forma de pago", help="Opcional."),
+        ColumnSpec("week_to_pay", "Semana de pago", help="Opcional."),
+        ColumnSpec("due_date", "Vencimiento", help="YYYY-MM-DD opcional."),
+        ColumnSpec("detail", "Detalle", help="Descripción de la compra."),
+        ColumnSpec("notes", "Observaciones", help="Opcional."),
+        ColumnSpec("item_material", "Material (nombre)", help="Vacío si no hay item en esta fila."),
+        ColumnSpec("item_quantity", "Cantidad", help="Decimal."),
+        ColumnSpec("item_unit", "Unidad ítem (símbolo)", help="Si vacío usa unidad del material."),
+        ColumnSpec("item_unit_price", "Precio unitario", help="Decimal."),
+        ColumnSpec("item_subcontract", "Subcontrato (nombre)", help="Si is_subcontract=True."),
+    ]
+
+    def run(self, rows: list[dict], dry_run: bool = True):
+        from collections import defaultdict
+
+        from .base import ImportResult, RowError
+
+        result = ImportResult(rows_total=0)
+
+        groups: dict[tuple, list[tuple[int, dict]]] = defaultdict(list)
+        for idx, row in enumerate(rows, start=2):
+            supplier_name = (row.get("supplier") or "").strip()
+            doc_number = (row.get("document_number") or "").strip()
+            if not supplier_name or not doc_number:
+                result.errors.append(RowError(
+                    row=idx,
+                    message="Faltan supplier o document_number para agrupar.",
+                ))
+                continue
+            key = (supplier_name.upper(), doc_number.upper())
+            groups[key].append((idx, row))
+
+        result.rows_total = len(groups)
+
+        for key, group_rows in groups.items():
+            first_idx = group_rows[0][0]
+            try:
+                action, label = self._process_group(group_rows, dry_run)
+                if action == "created":
+                    result.rows_created += 1
+                    result.rows_ok += 1
+                elif action == "updated":
+                    result.rows_updated += 1
+                    result.rows_ok += 1
+                if len(result.preview) < 20:
+                    result.preview.append({"row": first_idx, "action": action, "value": label})
+            except ValueError as exc:
+                result.errors.append(RowError(row=first_idx, message=str(exc)))
+
+        return result
+
+    def _process_group(self, group_rows, dry_run):
+        from django.db import transaction
+
+        with transaction.atomic():
+            return self._process_group_inner(group_rows, dry_run)
+
+    def _process_group_inner(self, group_rows, dry_run):
+        from apps.catalog.models import (
+            Material,
+            Subcontract,
+            Supplier,
+            Unit,
+        )
+        from apps.companies.models import Company
+        from apps.currencies.models import Currency
+        from apps.procurement.models import Purchase, PurchaseItem
+        from apps.projects.models import Project
+
+        header_row = group_rows[0][1]
+        doc_number = (header_row.get("document_number") or "").strip()
+        supplier_name = (header_row.get("supplier") or "").strip()
+        company_name = (header_row.get("company") or "").strip()
+        rubro_name = (header_row.get("rubro") or "").strip()
+        currency_code = (header_row.get("currency") or "").strip().upper()
+        invoice_date = _parse_date(header_row.get("invoice_date"))
+        total_amount = _parse_decimal(header_row.get("total_amount"))
+
+        if not all([doc_number, supplier_name, company_name, rubro_name, currency_code]):
+            raise ValueError("Faltan campos requeridos de cabecera.")
+        if invoice_date is None:
+            raise ValueError(f"Fecha de factura inválida: '{header_row.get('invoice_date')}'.")
+        if total_amount is None:
+            raise ValueError(f"Total inválido: '{header_row.get('total_amount')}'.")
+
+        supplier = Supplier.objects.filter(name=supplier_name).first()
+        if supplier is None:
+            raise ValueError(f"Proveedor '{supplier_name}' no existe.")
+        company = Company.objects.filter(name=company_name).first()
+        if company is None:
+            raise ValueError(f"Sociedad '{company_name}' no existe.")
+        rubro = Rubro.objects.filter(name=rubro_name).first()
+        if rubro is None:
+            raise ValueError(f"Rubro '{rubro_name}' no existe.")
+        currency = Currency.objects.filter(code=currency_code).first()
+        if currency is None:
+            raise ValueError(f"Moneda '{currency_code}' no existe.")
+
+        subrubro = None
+        subrubro_name = (header_row.get("subrubro") or "").strip()
+        if subrubro_name:
+            subrubro = Subrubro.objects.filter(rubro=rubro, name=subrubro_name).first()
+            if subrubro is None:
+                raise ValueError(f"Subrubro '{subrubro_name}' no existe bajo '{rubro_name}'.")
+
+        project = None
+        project_name = (header_row.get("project") or "").strip()
+        if project_name:
+            project = Project.objects.filter(name=project_name).first()
+            if project is None:
+                raise ValueError(f"Obra '{project_name}' no existe.")
+
+        purchase_type = (header_row.get("purchase_type") or "obra").strip().lower()
+        if purchase_type not in {c[0] for c in Purchase.PurchaseType.choices}:
+            purchase_type = Purchase.PurchaseType.OBRA
+        if purchase_type == Purchase.PurchaseType.OBRA and project is None:
+            raise ValueError("purchase_type=obra requiere campo `project`.")
+
+        document_type = (header_row.get("document_type") or "factura_a").strip().lower()
+        if document_type not in {c[0] for c in Purchase.DocumentType.choices}:
+            document_type = Purchase.DocumentType.FACTURA_A
+
+        is_subcontract = _parse_bool(header_row.get("is_subcontract"))
+        status = (header_row.get("status") or "to_pay").strip().lower()
+        if status not in {c[0] for c in Purchase.Status.choices}:
+            status = Purchase.Status.TO_PAY
+
+        amount_without_tax = _parse_decimal(header_row.get("amount_without_tax")) or Decimal("0")
+        iva_21 = _parse_decimal(header_row.get("iva_21")) or Decimal("0")
+        iva_10_5 = _parse_decimal(header_row.get("iva_10_5")) or Decimal("0")
+        perc_iibb = _parse_decimal(header_row.get("perc_iibb")) or Decimal("0")
+
+        payment_method = (header_row.get("payment_method") or "").strip()
+        week_to_pay = (header_row.get("week_to_pay") or "").strip()
+        due_date = _parse_date(header_row.get("due_date")) if header_row.get("due_date") else None
+        detail = (header_row.get("detail") or "").strip()
+        notes = (header_row.get("notes") or "").strip()
+
+        label = f"{doc_number} · {supplier_name}"
+
+        existing = (
+            Purchase.objects
+            .filter(supplier=supplier, document_number=doc_number)
+            .first()
+        )
+        action = "updated" if existing else "created"
+
+        if dry_run:
+            return (action, label)
+
+        purchase_data = dict(
+            purchase_type=purchase_type,
+            document_type=document_type,
+            document_number=doc_number,
+            invoice_date=invoice_date,
+            is_subcontract=is_subcontract,
+            supplier=supplier,
+            company=company,
+            project=project,
+            rubro=rubro,
+            subrubro=subrubro,
+            detail=detail,
+            original_currency=currency,
+            amount_without_tax=amount_without_tax,
+            iva_21=iva_21,
+            iva_10_5=iva_10_5,
+            perc_iibb=perc_iibb,
+            total_amount=total_amount,
+            payment_method=payment_method,
+            week_to_pay=week_to_pay,
+            due_date=due_date,
+            status=status,
+            notes=notes,
+        )
+
+        if existing:
+            for field, value in purchase_data.items():
+                setattr(existing, field, value)
+            existing.save()
+            purchase = existing
+            purchase.items.all().delete()
+        else:
+            purchase = Purchase.objects.create(**purchase_data)
+
+        items_created = 0
+        for _idx, row in group_rows:
+            item_material = (row.get("item_material") or "").strip()
+            item_subcontract = (row.get("item_subcontract") or "").strip()
+            if not (item_material or item_subcontract):
+                continue
+            qty = _parse_decimal(row.get("item_quantity"))
+            unit_price = _parse_decimal(row.get("item_unit_price"))
+            if qty is None or unit_price is None:
+                raise ValueError(
+                    f"Item con material/subcontract pero sin cantidad o precio "
+                    f"({item_material or item_subcontract}).",
+                )
+
+            unit_symbol = (row.get("item_unit") or "").strip()
+            material = sub_obj = None
+            unit = None
+            if item_material:
+                material = Material.objects.filter(name=item_material).first()
+                if material is None:
+                    raise ValueError(f"Material '{item_material}' no existe.")
+                unit = (
+                    Unit.objects.filter(symbol=unit_symbol).first()
+                    if unit_symbol else material.unit
+                )
+            if item_subcontract:
+                sub_obj = Subcontract.objects.filter(name=item_subcontract).first()
+                if sub_obj is None:
+                    raise ValueError(f"Subcontract '{item_subcontract}' no existe.")
+                unit = (
+                    Unit.objects.filter(symbol=unit_symbol).first()
+                    if unit_symbol else sub_obj.unit
+                )
+            if unit is None:
+                raise ValueError("No se pudo resolver la unidad del item.")
+
+            PurchaseItem.objects.create(
+                purchase=purchase,
+                material=material,
+                subcontract=sub_obj,
+                quantity=qty,
+                unit=unit,
+                unit_price=unit_price,
+            )
+            items_created += 1
+
+        label = f"{label} ({items_created} ítem{'s' if items_created != 1 else ''})"
+        return (action, label)
+
+
+def _parse_decimal(raw):
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        return Decimal(s.replace(",", "."))
+    except (InvalidOperation, ValueError):
+        return None
+
+
 # Registro central
 IMPORTERS: dict[str, type[BaseImporter]] = {
     RubroImporter.slug: RubroImporter,
@@ -461,6 +750,7 @@ IMPORTERS: dict[str, type[BaseImporter]] = {
     SupplierImporter.slug: SupplierImporter,
     EmployeeImporter.slug: EmployeeImporter,
     ExchangeRateImporter.slug: ExchangeRateImporter,
+    PurchaseImporter.slug: PurchaseImporter,
 }
 
 
