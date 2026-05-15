@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Cruce {{ report }} · Mamsys{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'budget_analysis:report_list' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Historial</a>
+    <h1 class="text-xl font-semibold text-gray-700 mt-1">
+        Cruce {{ report.project.name }} · P{{ report.budget.version }} @ {{ report.cutoff_date|date:"d/m/Y" }}
+    </h1>
+    <p class="text-xs text-gray-500 mt-1">
+        Generado {{ report.created_at|date:"d/m/Y H:i" }}
+        {% if report.generated_by %}por {{ report.generated_by.email }}{% endif %}
+        · Moneda {{ report.in_currency.code }}
+        {% if data.purchases_count is not None %}· {{ data.purchases_count }} compras y {{ data.allocations_count }} imputaciones{% endif %}
+    </p>
+</header>
+
+{% include "budget_analysis/_breakdown.html" with
+    currency_symbol=report.in_currency.symbol
+    materials_planned=data.materials.planned materials_actual=data.materials.actual materials_variance=0
+    labor_planned=data.labor.planned labor_actual=data.labor.actual labor_variance=0
+    subcontracts_planned=data.subcontracts.planned subcontracts_actual=data.subcontracts.actual subcontracts_variance=0
+    total_planned=report.total_planned total_actual=report.total_actual
+    variance_amount=report.variance_amount variance_pct=report.variance_pct
+    rubros=data.rubros tasks=data.tasks
+%}
+{% endblock %}

@@ -74,6 +74,7 @@ TENANT_APPS = [
     "apps.payroll",
     "apps.task_master",
     "apps.budgets",
+    "apps.budget_analysis",
     # próximas fases: tracking, treasury, ...
 ]
 

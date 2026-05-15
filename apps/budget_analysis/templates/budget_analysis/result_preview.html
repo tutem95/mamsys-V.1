@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Cruce {{ budget.project.name }} P{{ budget.version }} · Vista previa{% endblock %}
+
+{% block content %}
+<header class="mb-6">
+    <a href="{% url 'budget_analysis:generate' %}" class="text-xs text-gray-500 hover:text-brand-mid">← Generar otro</a>
+    <h1 class="text-xl font-semibold text-gray-700 mt-1">
+        Cruce {{ result.project_name }} · {{ result.budget_label }} @ {{ result.cutoff_date|date:"d/m/Y" }}
+    </h1>
+    <p class="text-xs text-gray-500 mt-1">
+        Vista previa (no guardado). {{ result.purchases_count }} compra{{ result.purchases_count|pluralize }}
+        y {{ result.allocations_count }} imputación{{ result.allocations_count|pluralize:"es" }} de nómina contabilizadas.
+    </p>
+</header>
+
+{% include "budget_analysis/_breakdown.html" with
+    currency_symbol=result.currency_code
+    materials_planned=result.materials.planned materials_actual=result.materials.actual materials_variance=result.materials.variance
+    labor_planned=result.labor.planned labor_actual=result.labor.actual labor_variance=result.labor.variance
+    subcontracts_planned=result.subcontracts.planned subcontracts_actual=result.subcontracts.actual subcontracts_variance=result.subcontracts.variance
+    total_planned=result.total_planned total_actual=result.total_actual
+    variance_amount=result.variance_amount variance_pct=result.variance_pct
+    rubros=result.rubros tasks=result.tasks
+%}
+{% endblock %}

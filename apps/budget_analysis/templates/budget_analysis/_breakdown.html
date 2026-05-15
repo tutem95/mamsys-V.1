@@ -1,0 +1,146 @@
+{# Tabla reutilizable de KPIs y breakdowns del CrossResult.
+
+    Espera contextual:
+    - currency_symbol
+    - materials_planned, materials_actual
+    - labor_planned, labor_actual
+    - subcontracts_planned, subcontracts_actual
+    - total_planned, total_actual, variance_amount, variance_pct
+    - rubros: list of {name, planned, actual, variance, variance_pct}
+    - tasks: list of {name, quantity, planned, actual, variance, variance_pct}
+#}
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Planificado</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ currency_symbol }} {{ total_planned|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Real</p>
+        <p class="text-base font-mono font-semibold text-gray-700 mt-0.5">{{ currency_symbol }} {{ total_actual|floatformat:2 }}</p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">Varianza</p>
+        <p class="text-base font-mono font-semibold mt-0.5
+            {% if variance_amount > 0 %}text-red-600
+            {% elif variance_amount < 0 %}text-green-600
+            {% else %}text-gray-500{% endif %}">
+            {{ variance_amount|floatformat:2 }}
+        </p>
+    </div>
+    <div class="border border-gray-100 rounded p-3">
+        <p class="text-xs uppercase tracking-wider text-gray-500">% Varianza</p>
+        <p class="text-base font-mono font-semibold mt-0.5
+            {% if variance_pct > 0 %}text-red-600
+            {% elif variance_pct < 0 %}text-green-600
+            {% else %}text-gray-500{% endif %}">
+            {{ variance_pct|floatformat:1 }}%
+        </p>
+    </div>
+</div>
+
+<section class="mb-6">
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Por categoría</h2>
+    <div class="border border-gray-100 rounded overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Categoría</th>
+                    <th class="text-right px-3 py-2 font-medium">Planificado</th>
+                    <th class="text-right px-3 py-2 font-medium">Real</th>
+                    <th class="text-right px-3 py-2 font-medium">Varianza</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-t border-gray-50">
+                    <td class="px-3 py-2 text-gray-700">Materiales</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ materials_planned|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ materials_actual|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-xs">{{ materials_variance|floatformat:2 }}</td>
+                </tr>
+                <tr class="border-t border-gray-50">
+                    <td class="px-3 py-2 text-gray-700">Mano de obra</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ labor_planned|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ labor_actual|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-xs">{{ labor_variance|floatformat:2 }}</td>
+                </tr>
+                <tr class="border-t border-gray-50">
+                    <td class="px-3 py-2 text-gray-700">Subcontratos</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ subcontracts_planned|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ subcontracts_actual|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono text-xs">{{ subcontracts_variance|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="mb-6">
+    <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Por rubro</h2>
+    <div class="border border-gray-100 rounded overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-brand-pale text-xs text-gray-700">
+                <tr>
+                    <th class="text-left px-3 py-2 font-medium">Rubro</th>
+                    <th class="text-right px-3 py-2 font-medium">Planificado</th>
+                    <th class="text-right px-3 py-2 font-medium">Real</th>
+                    <th class="text-right px-3 py-2 font-medium">Varianza</th>
+                    <th class="text-right px-3 py-2 font-medium">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rubros %}
+                    <tr class="border-t border-gray-50">
+                        <td class="px-3 py-2 text-gray-700">{{ r.name|default:r.rubro_name }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ r.planned|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ r.actual|floatformat:2 }}</td>
+                        <td class="px-3 py-2 text-right font-mono text-xs
+                            {% if r.variance > 0 %}text-red-600
+                            {% elif r.variance < 0 %}text-green-600
+                            {% else %}text-gray-500{% endif %}">
+                            {{ r.variance|floatformat:2 }}
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono text-xs">{{ r.variance_pct|floatformat:1 }}%</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="px-3 py-4 text-center text-xs text-gray-500">Sin datos por rubro.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if tasks %}
+    <section>
+        <h2 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Por tarea (solo las vinculadas)</h2>
+        <div class="border border-gray-100 rounded overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-pale text-xs text-gray-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-medium">Tarea</th>
+                        <th class="text-right px-3 py-2 font-medium">Cant.</th>
+                        <th class="text-right px-3 py-2 font-medium">Planificado</th>
+                        <th class="text-right px-3 py-2 font-medium">Real</th>
+                        <th class="text-right px-3 py-2 font-medium">Varianza</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tasks %}
+                        <tr class="border-t border-gray-50">
+                            <td class="px-3 py-2 text-gray-700">{{ t.name|default:t.task_name }}</td>
+                            <td class="px-3 py-2 text-right font-mono text-xs">{{ t.quantity|floatformat:2 }}</td>
+                            <td class="px-3 py-2 text-right font-mono">{{ t.planned|floatformat:2 }}</td>
+                            <td class="px-3 py-2 text-right font-mono">{{ t.actual|floatformat:2 }}</td>
+                            <td class="px-3 py-2 text-right font-mono text-xs
+                                {% if t.variance > 0 %}text-red-600
+                                {% elif t.variance < 0 %}text-green-600
+                                {% else %}text-gray-500{% endif %}">
+                                {{ t.variance|floatformat:2 }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endif %}

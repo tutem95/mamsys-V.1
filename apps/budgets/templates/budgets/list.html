@@ -8,10 +8,14 @@
         <h1 class="text-xl font-semibold text-gray-700">Presupuestos</h1>
         <p class="text-xs text-gray-500 mt-1">{{ paginator.count }} presupuesto{{ paginator.count|pluralize }}.</p>
     </div>
-    <a href="{% url 'budgets:create' %}"
-       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
-        + Nuevo presupuesto
-    </a>
+    <div class="flex gap-2">
+        <a href="{% url 'budget_analysis:generate' %}"
+           class="text-sm text-brand-mid hover:underline self-center">Cruce vs Real →</a>
+        <a href="{% url 'budgets:create' %}"
+           class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+            + Nuevo presupuesto
+        </a>
+    </div>
 </header>
 
 <form method="get" class="flex flex-wrap gap-2 mb-4 text-xs items-end">

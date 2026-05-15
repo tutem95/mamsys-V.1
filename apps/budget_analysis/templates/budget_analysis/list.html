@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Cruce Presupuesto vs Real · Mamsys{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-baseline mb-4">
+    <div>
+        <h1 class="text-xl font-semibold text-gray-700">Cruce Presupuesto vs Real</h1>
+        <p class="text-xs text-gray-500 mt-1">Historial de cruces guardados.</p>
+    </div>
+    <a href="{% url 'budget_analysis:generate' %}"
+       class="bg-brand-mid hover:bg-brand-light text-white text-sm font-medium rounded px-3 py-1.5 transition-colors">
+        + Nuevo cruce
+    </a>
+</header>
+
+<div class="border border-gray-100 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-brand-pale text-xs text-gray-700">
+            <tr>
+                <th class="text-left px-3 py-2 font-medium">Obra</th>
+                <th class="text-left px-3 py-2 font-medium">Presupuesto</th>
+                <th class="text-left px-3 py-2 font-medium">Corte</th>
+                <th class="text-right px-3 py-2 font-medium">Planificado</th>
+                <th class="text-right px-3 py-2 font-medium">Real</th>
+                <th class="text-right px-3 py-2 font-medium">Varianza</th>
+                <th class="text-left px-3 py-2 font-medium">Generado</th>
+                <th class="px-3 py-2 w-16"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reports %}
+                <tr class="border-t border-gray-50 hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-700">{{ r.project.name }}</td>
+                    <td class="px-3 py-2 text-gray-700">P{{ r.budget.version }}</td>
+                    <td class="px-3 py-2 text-xs">{{ r.cutoff_date|date:"d/m/Y" }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ r.in_currency.symbol }} {{ r.total_planned|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono">{{ r.in_currency.symbol }} {{ r.total_actual|floatformat:2 }}</td>
+                    <td class="px-3 py-2 text-right font-mono font-semibold
+                        {% if r.variance_amount > 0 %}text-red-600
+                        {% elif r.variance_amount < 0 %}text-green-600
+                        {% else %}text-gray-500{% endif %}">
+                        {{ r.variance_amount|floatformat:2 }} ({{ r.variance_pct|floatformat:1 }}%)
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-500">{{ r.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="px-3 py-2 text-right">
+                        <a href="{% url 'budget_analysis:report_detail' r.pk %}" class="text-xs text-brand-mid hover:underline">Ver</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="px-3 py-6 text-center text-xs text-gray-500">
+                    Sin cruces guardados. <a href="{% url 'budget_analysis:generate' %}" class="text-brand-mid hover:underline">Generar uno</a>.
+                </td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
